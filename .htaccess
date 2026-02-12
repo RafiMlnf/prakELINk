@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# Redirect root to index.php
+RewriteRule ^$ index.php [L]
+
+# Deny access to config files
+<FilesMatch "\.(sql|md|env)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Deny access to config directory
+RewriteRule ^config/ - [F,L]
+RewriteRule ^database/ - [F,L]
+
+# Prevent direct access to includes
+RewriteRule ^includes/ - [F,L]
