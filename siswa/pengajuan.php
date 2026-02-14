@@ -10,8 +10,6 @@ $db = getDB();
 $pageTitle = 'Pengajuan PKL';
 $siswaId = $_SESSION['siswa_id'];
 
-// Mark pengajuan notifications as read
-markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -151,6 +149,9 @@ $hasPlacement = $hasPlacement->fetch();
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
+
+// Mark pengajuan notifications as read (AFTER sidebar renders badge count)
+markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
 ?>
 
 <main class="main-content">

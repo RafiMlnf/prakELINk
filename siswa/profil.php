@@ -146,10 +146,23 @@ include __DIR__ . '/../includes/sidebar.php';
 <!-- Cropper.js CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 <style>
-    .cropper-view-box, .cropper-face { border-radius: 50%; }
-    .cropper-view-box { outline: 2px solid #fff; outline-offset: -2px; }
-    .cropper-point { background-color: var(--primary); }
-    .cropper-line { background-color: rgba(255,255,255,0.3); }
+    .cropper-view-box,
+    .cropper-face {
+        border-radius: 50%;
+    }
+
+    .cropper-view-box {
+        outline: 2px solid #fff;
+        outline-offset: -2px;
+    }
+
+    .cropper-point {
+        background-color: var(--primary);
+    }
+
+    .cropper-line {
+        background-color: rgba(255, 255, 255, 0.3);
+    }
 </style>
 
 <main class="main-content">
@@ -194,9 +207,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h3 style="color:var(--text-heading);margin-bottom:4px;">
                         <?= htmlspecialchars($profile['nama_lengkap']) ?>
                     </h3>
-                    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px;">
-                        @<?= htmlspecialchars($profile['username']) ?>
-                    </p>
+
 
                     <div class="alert alert-warning"
                         style="display:inline-flex;padding:6px 12px;font-size:0.75rem;margin-bottom:0;">
@@ -334,96 +345,96 @@ include __DIR__ . '/../includes/sidebar.php';
 <!-- Cropper.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
-let cropper = null;
+    let cropper = null;
 
-document.getElementById('fotoInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+    document.getElementById('fotoInput').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-    const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (!allowed.includes(file.type)) {
-        alert('Hanya format JPG, JPEG, dan PNG yang diperbolehkan.');
-        this.value = '';
-        return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-        alert('Ukuran file maksimal 5MB.');
-        this.value = '';
-        return;
-    }
+        const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowed.includes(file.type)) {
+            alert('Hanya format JPG, JPEG, dan PNG yang diperbolehkan.');
+            this.value = '';
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Ukuran file maksimal 5MB.');
+            this.value = '';
+            return;
+        }
 
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-        const cropImage = document.getElementById('cropImage');
-        cropImage.src = ev.target.result;
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+            const cropImage = document.getElementById('cropImage');
+            cropImage.src = ev.target.result;
 
-        const modal = document.getElementById('cropModal');
-        modal.style.display = 'flex';
+            const modal = document.getElementById('cropModal');
+            modal.style.display = 'flex';
 
-        if (cropper) { cropper.destroy(); cropper = null; }
+            if (cropper) { cropper.destroy(); cropper = null; }
 
-        cropImage.onload = function() {
-            cropper = new Cropper(cropImage, {
-                aspectRatio: 1,
-                viewMode: 1,
-                dragMode: 'move',
-                autoCropArea: 0.85,
-                cropBoxResizable: true,
-                cropBoxMovable: true,
-                guides: false,
-                center: true,
-                highlight: false,
-                background: false,
-                responsive: true,
-                ready: function() {
-                    document.getElementById('zoomSlider').value = 1;
-                }
-            });
+            cropImage.onload = function () {
+                cropper = new Cropper(cropImage, {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 0.85,
+                    cropBoxResizable: true,
+                    cropBoxMovable: true,
+                    guides: false,
+                    center: true,
+                    highlight: false,
+                    background: false,
+                    responsive: true,
+                    ready: function () {
+                        document.getElementById('zoomSlider').value = 1;
+                    }
+                });
+            };
         };
-    };
-    reader.readAsDataURL(file);
-});
-
-document.getElementById('zoomSlider').addEventListener('input', function() {
-    if (cropper) cropper.zoomTo(parseFloat(this.value));
-});
-
-function rotateCrop(deg) {
-    if (cropper) cropper.rotate(deg);
-}
-
-function closeCropModal() {
-    document.getElementById('cropModal').style.display = 'none';
-    if (cropper) { cropper.destroy(); cropper = null; }
-    document.getElementById('fotoInput').value = '';
-}
-
-function applyCrop() {
-    if (!cropper) return;
-
-    const canvas = cropper.getCroppedCanvas({
-        width: 500,
-        height: 500,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
+        reader.readAsDataURL(file);
     });
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    document.getElementById('zoomSlider').addEventListener('input', function () {
+        if (cropper) cropper.zoomTo(parseFloat(this.value));
+    });
 
-    // Set hidden input
-    document.getElementById('croppedFotoInput').value = dataUrl;
+    function rotateCrop(deg) {
+        if (cropper) cropper.rotate(deg);
+    }
 
-    // Update avatar preview
-    const preview = document.getElementById('avatarPreview');
-    const placeholder = document.getElementById('avatarPlaceholder');
-    preview.src = dataUrl;
-    preview.style.display = '';
-    if (placeholder) placeholder.style.display = 'none';
+    function closeCropModal() {
+        document.getElementById('cropModal').style.display = 'none';
+        if (cropper) { cropper.destroy(); cropper = null; }
+        document.getElementById('fotoInput').value = '';
+    }
 
-    // Close modal
-    document.getElementById('cropModal').style.display = 'none';
-    if (cropper) { cropper.destroy(); cropper = null; }
-}
+    function applyCrop() {
+        if (!cropper) return;
+
+        const canvas = cropper.getCroppedCanvas({
+            width: 500,
+            height: 500,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+        });
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+        // Set hidden input
+        document.getElementById('croppedFotoInput').value = dataUrl;
+
+        // Update avatar preview
+        const preview = document.getElementById('avatarPreview');
+        const placeholder = document.getElementById('avatarPlaceholder');
+        preview.src = dataUrl;
+        preview.style.display = '';
+        if (placeholder) placeholder.style.display = 'none';
+
+        // Close modal
+        document.getElementById('cropModal').style.display = 'none';
+        if (cropper) { cropper.destroy(); cropper = null; }
+    }
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

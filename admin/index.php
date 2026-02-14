@@ -19,6 +19,7 @@ $hadirHariIni = $hadirHariIni->fetchColumn();
 
 $jurnalPending = $db->query("SELECT COUNT(*) FROM jurnal WHERE status = 'pending'")->fetchColumn();
 $pengajuanPending = $db->query("SELECT COUNT(*) FROM pengajuan_pkl WHERE status = 'pending'")->fetchColumn();
+$jamKerjaPending = $db->query("SELECT COUNT(*) FROM pengajuan_jam_kerja WHERE status = 'pending'")->fetchColumn();
 
 // Fetch placement locations for map
 $locations = $db->query("
@@ -56,6 +57,53 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <main class="main-content">
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
+
+    <?php if ($pengajuanPending > 0): ?>
+        <div class="card mb-3 animate-item"
+            style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(99,102,241,0.05));border-color:rgba(245,158,11,0.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div
+                        style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-file-signature" style="font-size:1.2rem;color:var(--warning);"></i>
+                    </div>
+                    <div>
+                        <strong style="color:var(--text-heading);">Ada <?= $pengajuanPending ?> pengajuan PKL menunggu
+                            verifikasi</strong>
+                        <div style="font-size:.8rem;color:var(--text-muted);">Periksa berkas dan verifikasi pengajuan siswa
+                        </div>
+                    </div>
+                </div>
+                <a href="<?= BASE_URL ?>/admin/pengajuan.php" class="btn btn-warning btn-sm">
+                    <i class="fas fa-arrow-right"></i> Lihat Pengajuan
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($jamKerjaPending > 0): ?>
+        <div class="card mb-3 animate-item"
+            style="background:linear-gradient(135deg,rgba(16, 185, 129,0.1),rgba(6, 182, 212,0.05));border-color:rgba(16, 185, 129,0.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div
+                        style="width:44px;height:44px;border-radius:12px;background:rgba(16, 185, 129,0.15);display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-clock" style="font-size:1.2rem;color:var(--success);"></i>
+                    </div>
+                    <div>
+                        <strong style="color:var(--text-heading);">Ada <?= $jamKerjaPending ?> pengajuan Jam Kerja menunggu
+                            validasi</strong>
+                        <div style="font-size:.8rem;color:var(--text-muted);">Segera proses agar siswa dapat melakukan
+                            presensi
+                        </div>
+                    </div>
+                </div>
+                <a href="<?= BASE_URL ?>/admin/jam_kerja.php" class="btn btn-success btn-sm">
+                    <i class="fas fa-arrow-right"></i> Validasi Sekarang
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Stats Cards -->
     <div class="stats-grid">
@@ -108,6 +156,66 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
+    <!-- Attendance Chart -->
+    <?php
+    // Fetch last 30 days attendance
+    $chartStart = date('Y-m-d', strtotime('-30 days'));
+    $chartDataQuery = $db->prepare("
+        SELECT tanggal, 
+               SUM(CASE WHEN status = 'hadir' THEN 1 ELSE 0 END) as hadir,
+               SUM(CASE WHEN status IN ('izin', 'sakit', 'alpha') THEN 1 ELSE 0 END) as tidak_hadir
+        FROM presensi 
+        WHERE tanggal >= ?
+        GROUP BY tanggal
+        ORDER BY tanggal ASC
+    ");
+    $chartDataQuery->execute([$chartStart]);
+    $chartData = $chartDataQuery->fetchAll();
+
+    // Prepare arrays for Chart.js
+    $dates = [];
+    $hadir = [];
+    $tidakHadir = [];
+
+    // Fill gaps if needed, but for now simple mapping
+    // To make it look nice like the image (smooth curve), we need continuous data
+    $period = new DatePeriod(
+        new DateTime($chartStart),
+        new DateInterval('P1D'),
+        new DateTime(date('Y-m-d', strtotime('+1 day'))) // inclusive of today
+    );
+
+    $mappedData = [];
+    foreach ($chartData as $d) {
+        $mappedData[$d['tanggal']] = $d;
+    }
+
+    foreach ($period as $date) {
+        $fmt = $date->format('Y-m-d');
+        $dates[] = $date->format('d M'); // 12 Jan
+        $hadir[] = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['hadir'] : 0;
+        $tidakHadir[] = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['tidak_hadir'] : 0;
+    }
+    ?>
+
+    <div class="card mb-3 animate-item">
+        <div class="card-header" style="justify-content:space-between;align-items:center;">
+            <div>
+                <h3 class="card-title">Overview Kehadiran</h3>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Menampilkan chart kehadiran siswa 30 hari
+                    terakhir</p>
+            </div>
+            <!--
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline active">30 Hari</button>
+            </div>
+            -->
+        </div>
+        <div style="height:350px;width:100%;padding:10px;">
+            <canvas id="attendanceChart"></canvas>
+        </div>
+    </div>
+
     <!-- Peta Lokasi PKL -->
     <div class="card mb-3 animate-item">
         <div class="card-header">
@@ -121,6 +229,105 @@ include __DIR__ . '/../includes/sidebar.php';
             </p>
         <?php endif; ?>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('attendanceChart').getContext('2d');
+
+            // Create gradients
+            const gradientHadir = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientHadir.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); // Green
+            gradientHadir.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
+            const gradientTidak = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientTidak.addColorStop(0, 'rgba(239, 68, 68, 0.4)'); // Red
+            gradientTidak.addColorStop(1, 'rgba(239, 68, 68, 0)');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: <?= json_encode($dates) ?>,
+                    datasets: [
+                        {
+                            label: 'Hadir',
+                            data: <?= json_encode(array_values($hadir)) ?>,
+                            borderColor: '#10b981',
+                            backgroundColor: gradientHadir,
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Tidak Hadir',
+                            data: <?= json_encode(array_values($tidakHadir)) ?>,
+                            borderColor: '#ef4444',
+                            backgroundColor: gradientTidak,
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#1e293b',
+                            bodyColor: '#475569',
+                            borderColor: '#e2e8f0',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxTicksLimit: 10,
+                                color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 4],
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        });
+    </script>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -173,28 +380,9 @@ include __DIR__ . '/../includes/sidebar.php';
         })();
     </script>
 
-    <?php if ($pengajuanPending > 0): ?>
-        <div class="card mb-3 animate-item"
-            style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(99,102,241,0.05));border-color:rgba(245,158,11,0.25);">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div
-                        style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;">
-                        <i class="fas fa-file-signature" style="font-size:1.2rem;color:var(--warning);"></i>
-                    </div>
-                    <div>
-                        <strong style="color:var(--text-heading);">Ada <?= $pengajuanPending ?> pengajuan PKL menunggu
-                            verifikasi</strong>
-                        <div style="font-size:.8rem;color:var(--text-muted);">Periksa berkas dan verifikasi pengajuan siswa
-                        </div>
-                    </div>
-                </div>
-                <a href="<?= BASE_URL ?>/admin/pengajuan.php" class="btn btn-warning btn-sm">
-                    <i class="fas fa-arrow-right"></i> Lihat Pengajuan
-                </a>
-            </div>
-        </div>
-    <?php endif; ?>
+
+
+
 
     <div class="grid-2">
         <!-- Recent Attendance -->

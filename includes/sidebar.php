@@ -12,6 +12,7 @@ $adminMenu = [
     ['icon' => 'fas fa-user-graduate', 'label' => 'Data Siswa', 'url' => '/admin/siswa.php', 'page' => 'siswa'],
     ['icon' => 'fas fa-file-signature', 'label' => 'Pengajuan PKL', 'url' => '/admin/pengajuan.php', 'page' => 'pengajuan'],
     ['icon' => 'fas fa-building', 'label' => 'Penempatan', 'url' => '/admin/penempatan.php', 'page' => 'penempatan'],
+    ['icon' => 'fas fa-clock', 'label' => 'Validasi Jam', 'url' => '/admin/jam_kerja.php', 'page' => 'jam_kerja'],
     ['icon' => 'fas fa-clipboard-check', 'label' => 'Presensi', 'url' => '/admin/presensi.php', 'page' => 'presensi'],
     ['icon' => 'fas fa-book', 'label' => 'Jurnal PKL', 'url' => '/admin/jurnal.php', 'page' => 'jurnal'],
     ['icon' => 'fas fa-chalkboard-teacher', 'label' => 'Kelola Guru', 'url' => '/admin/kelola-guru.php', 'page' => 'kelola-guru'],
@@ -20,6 +21,7 @@ $adminMenu = [
 $siswaMenu = [
     ['icon' => 'fas fa-th-large', 'label' => 'Dashboard', 'url' => '/siswa/index.php', 'page' => 'index'],
     ['icon' => 'fas fa-file-signature', 'label' => 'Pengajuan PKL', 'url' => '/siswa/pengajuan.php', 'page' => 'pengajuan'],
+    ['icon' => 'fas fa-clock', 'label' => 'Jam Kerja', 'url' => '/siswa/jam_kerja.php', 'page' => 'jam_kerja'],
     ['icon' => 'fas fa-map-marker-alt', 'label' => 'Presensi', 'url' => '/siswa/presensi.php', 'page' => 'presensi'],
     ['icon' => 'fas fa-book-open', 'label' => 'Jurnal PKL', 'url' => '/siswa/jurnal.php', 'page' => 'jurnal'],
     ['icon' => 'fas fa-user-circle', 'label' => 'Profil', 'url' => '/siswa/profil.php', 'page' => 'profil'],
@@ -30,6 +32,7 @@ $pembimbingMenu = [
     ['icon' => 'fas fa-user-graduate', 'label' => 'Data Siswa', 'url' => '/admin/siswa.php', 'page' => 'siswa'],
     ['icon' => 'fas fa-file-signature', 'label' => 'Pengajuan PKL', 'url' => '/admin/pengajuan.php', 'page' => 'pengajuan'],
     ['icon' => 'fas fa-building', 'label' => 'Penempatan', 'url' => '/admin/penempatan.php', 'page' => 'penempatan'],
+    ['icon' => 'fas fa-clock', 'label' => 'Validasi Jam', 'url' => '/admin/jam_kerja.php', 'page' => 'jam_kerja'],
     ['icon' => 'fas fa-clipboard-check', 'label' => 'Presensi', 'url' => '/admin/presensi.php', 'page' => 'presensi'],
     ['icon' => 'fas fa-book', 'label' => 'Jurnal PKL', 'url' => '/admin/jurnal.php', 'page' => 'jurnal'],
 ];
@@ -69,6 +72,7 @@ if ($user) {
     if ($user && $user['role'] === 'siswa') {
         $notifBadges['pengajuan'] = countUnreadNotifikasi($user['id'], 'pengajuan');
         $notifBadges['jurnal'] = countUnreadNotifikasi($user['id'], 'jurnal');
+        $notifBadges['jam_kerja'] = countUnreadNotifikasi($user['id'], 'jam_kerja');
     }
     ?>
 
@@ -97,6 +101,8 @@ if ($user) {
             <?php endforeach; ?>
         </ul>
     </nav>
+
+
 
     <div class="sidebar-footer">
         <div class="user-info">

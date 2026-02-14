@@ -132,23 +132,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="lr-shape ls3"></div>
             </div>
             <div class="login-right-content">
-                <div style="font-size:4rem;margin-bottom:20px;">🎓</div>
-                <h2 style="font-size:2rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">PRAKELINK
+                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">prakELINk
                 </h2>
-                <p style="font-size:1.05rem;color:rgba(255,255,255,0.85);line-height:1.6;max-width:320px;">Monitoring
-                    Prakerin siswa Elektronika Industri SMKN 2 Garut — Presensi berbasis lokasi & Jurnal Digital.</p>
-                <div style="margin-top:32px;display:flex;gap:20px;">
-                    <div style="text-align:center;">
-                        <div style="font-size:1.6rem;font-weight:800;color:white;">📍</div>
-                        <div style="font-size:.75rem;color:rgba(255,255,255,0.7);margin-top:4px;">Presensi GPS</div>
+                <div
+                    style="width: 60px; height: 4px; background: rgba(255,255,255,0.3); margin: 0 auto 24px; border-radius: 2px;">
+                </div>
+                <p
+                    style="font-size:1.1rem;color:rgba(255,255,255,0.9);line-height:1.6;max-width:360px;margin-bottom:40px;">
+                    Sistem informasi monitoring Praktik Kerja Industri SMKN 2 Garut untuk efisiensi dan transparansi
+                    kegiatan siswa.
+                </p>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;max-width:400px;margin:0 auto;">
+                    <div
+                        style="text-align:center;padding:16px;background:rgba(255,255,255,0.1);border-radius:12px;backdrop-filter:blur(5px);">
+                        <i class="fas fa-map-marked-alt" style="font-size:1.5rem;color:white;margin-bottom:8px;"></i>
+                        <div style="font-size:.75rem;color:rgba(255,255,255,0.8);font-weight:500;">Presensi Lokasi</div>
                     </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:1.6rem;font-weight:800;color:white;">📝</div>
-                        <div style="font-size:.75rem;color:rgba(255,255,255,0.7);margin-top:4px;">Jurnal Digital</div>
+                    <div
+                        style="text-align:center;padding:16px;background:rgba(255,255,255,0.1);border-radius:12px;backdrop-filter:blur(5px);">
+                        <i class="fas fa-book-open" style="font-size:1.5rem;color:white;margin-bottom:8px;"></i>
+                        <div style="font-size:.75rem;color:rgba(255,255,255,0.8);font-weight:500;">Jurnal Harian</div>
                     </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:1.6rem;font-weight:800;color:white;">📊</div>
-                        <div style="font-size:.75rem;color:rgba(255,255,255,0.7);margin-top:4px;">Monitoring</div>
+                    <div
+                        style="text-align:center;padding:16px;background:rgba(255,255,255,0.1);border-radius:12px;backdrop-filter:blur(5px);">
+                        <i class="fas fa-chart-line" style="font-size:1.5rem;color:white;margin-bottom:8px;"></i>
+                        <div style="font-size:.75rem;color:rgba(255,255,255,0.8);font-weight:500;">Laporan Aktivitas
+                        </div>
                     </div>
                 </div>
             </div>

@@ -2,6 +2,41 @@
  * PRAKELINK — Main Application JavaScript
  */
 
+// ---- Dark Mode (runs immediately to prevent flash) ----
+(function () {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+
+function toggleDarkMode() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    const newTheme = isDark ? 'light' : 'dark';
+
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateDarkModeUI(newTheme);
+}
+
+function updateDarkModeUI(theme) {
+    const icon = document.getElementById('darkModeIcon');
+    const label = document.getElementById('darkModeLabel');
+    if (icon) {
+        icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+    if (label) {
+        label.textContent = theme === 'dark' ? 'Mode Terang' : 'Mode Gelap';
+    }
+}
+
+// Update UI on load
+document.addEventListener('DOMContentLoaded', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateDarkModeUI(currentTheme);
+});
+
 // ---- Live Clock ----
 function updateClock() {
     const now = new Date();

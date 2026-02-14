@@ -51,6 +51,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setFlash($result['success'] ? 'success' : 'danger', $result['message']);
         redirect('/admin/siswa.php');
     }
+
+    if ($action === 'reset_password') {
+        $stmt = $db->prepare("SELECT s.user_id, s.nisn, u.nama_lengkap FROM siswa s JOIN users u ON s.user_id = u.id WHERE s.id = ?");
+        $stmt->execute([$_POST['id']]);
+        $data = $stmt->fetch();
+
+        if ($data) {
+            $newPassword = $data['nisn'];
+            $db->prepare("UPDATE users SET password = ? WHERE id = ?")->execute([
+                password_hash($newPassword, PASSWORD_DEFAULT),
+                $data['user_id']
+            ]);
+            setFlash('success', "Password <b>{$data['nama_lengkap']}</b> berhasil direset menjadi NISN (<b>{$newPassword}</b>).");
+        } else {
+            setFlash('danger', 'Data siswa tidak ditemukan.');
+        }
+        redirect('/admin/siswa.php');
+    }
 }
 
 // Fetch students
@@ -182,6 +200,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                     onclick="openAssign(<?= $s['id'] ?>, '<?= htmlspecialchars($s['nama_lengkap']) ?>', <?= $s['penempatan_id'] ?? 'null' ?>, <?= $s['pembimbing_id'] ?? 'null' ?>)">
                                     <i class="fas fa-map-pin" style="margin-right:4px;"></i> Assign
                                 </button>
+                                <form method="POST" style="display:inline;"
+                                    onsubmit="return confirmAction('Reset password siswa ini menjadi NISN?')">
+                                    <input type="hidden" name="action" value="reset_password">
+                                    <input type="hidden" name="id" value="<?= $s['id'] ?>">
+                                    <button type="submit" class="btn btn-warning btn-sm" title="Reset Password ke NISN">
+                                        <i class="fas fa-key"></i>
+                                    </button>
+                                </form>
                                 <form method="POST" style="display:inline;" onsubmit="return confirmAction('Hapus siswa ini?')">
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="id" value="<?= $s['id'] ?>">

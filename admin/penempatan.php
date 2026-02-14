@@ -83,7 +83,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th>No</th>
                             <th>Perusahaan</th>
                             <th>Alamat</th>
-                            <th>Koordinat</th>
+
                             <th>Radius</th>
                             <th>Periode</th>
                             <th>Siswa</th>
@@ -103,8 +103,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <?php endif; ?>
                                 </td>
                                 <td style="max-width:200px;"><?= htmlspecialchars($p['alamat']) ?></td>
-                                <td style="font-size:.8rem;font-family:monospace;"><?= $p['latitude'] ?>, <?= $p['longitude'] ?>
-                                </td>
+
                                 <td><span class="badge badge-primary"><?= $p['radius_meter'] ?>m</span></td>
                                 <td style="font-size:.8rem;"><?= date('d/m/Y', strtotime($p['tanggal_mulai'])) ?><br>s/d
                                     <?= date('d/m/Y', strtotime($p['tanggal_selesai'])) ?>

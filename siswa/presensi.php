@@ -1,7 +1,7 @@
 <?php
 /**
- * Student — GPS-Based Attendance
- * Check-in / Check-out with location validation
+ * Student — GPS-Based Attendance with Photo
+ * Check-in / Check-out with location validation and photo capture
  */
 require_once __DIR__ . '/../config/auth.php';
 requireRole('siswa');
@@ -19,12 +19,36 @@ $placement = $db->prepare("
 $placement->execute([$siswaId]);
 $placement = $placement->fetch();
 
+// Get Approved Schedule
+$schedule = $db->prepare("SELECT * FROM pengajuan_jam_kerja WHERE siswa_id = ? AND status = 'disetujui' ORDER BY created_at DESC LIMIT 1");
+$schedule->execute([$siswaId]);
+$schedule = $schedule->fetch();
+
 $today = date('Y-m-d');
 
 // Get today's attendance
 $todayRecord = $db->prepare("SELECT * FROM presensi WHERE siswa_id = ? AND tanggal = ?");
 $todayRecord->execute([$siswaId, $today]);
 $todayRecord = $todayRecord->fetch();
+
+// Helper: Save Base64 Image
+function saveImage($base64Data, $type, $siswaId)
+{
+    if (!$base64Data)
+        return null;
+    $data = explode(',', $base64Data);
+    if (count($data) < 2)
+        return null;
+
+    $imageData = base64_decode($data[1]);
+    $fileName = date('Ymd_His') . '_' . $siswaId . '_' . $type . '.jpg';
+    $path = __DIR__ . '/../assets/uploads/presensi/' . $fileName;
+
+    if (!is_dir(dirname($path)))
+        mkdir(dirname($path), 0777, true);
+    file_put_contents($path, $imageData);
+    return $fileName;
+}
 
 // Handle check-in / check-out via API
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -34,9 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $input['action'] ?? '';
     $lat = (float) ($input['latitude'] ?? 0);
     $lng = (float) ($input['longitude'] ?? 0);
+    $foto = $input['foto'] ?? null;
 
     if (!$placement) {
         jsonResponse(['success' => false, 'message' => 'Anda belum ditempatkan di lokasi PKL.']);
+    }
+
+    if (!$schedule && $action === 'checkin') { // Only block checkin if no schedule
+        // Brief: "Siswa tidak dapat melakukan absensi sebelum jam kerja disetujui."
+        jsonResponse(['success' => false, 'message' => 'Anda belum memiliki Jam Kerja yang disetujui Admin. Silahkan ajukan jam kerja terlebih dahulu via menu Jam Kerja.']);
     }
 
     $distance = haversineDistance($lat, $lng, (float) $placement['latitude'], (float) $placement['longitude']);
@@ -48,15 +78,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($distance > $placement['radius_meter']) {
             jsonResponse([
                 'success' => false,
-                'message' => 'Anda berada di luar radius yang diizinkan (' . round($distance) . 'm dari lokasi, max ' . $placement['radius_meter'] . 'm).',
+                'message' => 'Anda berada di luar radius (' . round($distance) . 'm). Max: ' . $placement['radius_meter'] . 'm.',
                 'distance' => round($distance)
             ]);
         }
+        if (!$foto) {
+            jsonResponse(['success' => false, 'message' => 'Foto selfie wajib diambil.']);
+        }
 
-        $stmt = $db->prepare("INSERT INTO presensi (siswa_id, tanggal, jam_masuk, lat_masuk, lng_masuk, jarak_masuk, status) VALUES (?, ?, ?, ?, ?, ?, 'hadir')");
-        $stmt->execute([$siswaId, $today, date('H:i:s'), $lat, $lng, round($distance, 2)]);
+        $imageName = saveImage($foto, 'masuk', $siswaId);
 
-        jsonResponse(['success' => true, 'message' => 'Check-in berhasil! Jarak: ' . round($distance) . 'm', 'time' => date('H:i:s'), 'distance' => round($distance)]);
+        // Late calculation (based on approved schedule)
+        // This is minimal; usually we'd store 'status' = 'terlambat' if jam_masuk > schedule['jam_masuk'] + tolerance
+        // For now, simpler implementation as requested ("mirip saja")
+
+        $stmt = $db->prepare("INSERT INTO presensi (siswa_id, tanggal, jam_masuk, lat_masuk, lng_masuk, jarak_masuk, foto_masuk, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'hadir')");
+        $stmt->execute([$siswaId, $today, date('H:i:s'), $lat, $lng, round($distance, 2), $imageName]);
+
+        jsonResponse(['success' => true, 'message' => 'Check-in berhasil!', 'time' => date('H:i:s')]);
     }
 
     if ($action === 'checkout') {
@@ -66,21 +105,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($todayRecord['jam_keluar']) {
             jsonResponse(['success' => false, 'message' => 'Anda sudah check-out hari ini.']);
         }
+        if ($todayRecord['status'] !== 'hadir') {
+            jsonResponse(['success' => false, 'message' => 'Anda tidak perlu check-out untuk status: ' . ucfirst($todayRecord['status'])]);
+        }
+        if ($distance > $placement['radius_meter']) {
+            jsonResponse([
+                'success' => false,
+                'message' => 'Anda berada di luar radius (' . round($distance) . 'm). Harap kembali ke lokasi PKL.',
+                'distance' => round($distance)
+            ]);
+        }
+        if (!$foto) {
+            jsonResponse(['success' => false, 'message' => 'Foto selfie check-out wajib diambil.']);
+        }
 
-        $stmt = $db->prepare("UPDATE presensi SET jam_keluar = ?, lat_keluar = ?, lng_keluar = ?, jarak_keluar = ? WHERE id = ?");
-        $stmt->execute([date('H:i:s'), $lat, $lng, round($distance, 2), $todayRecord['id']]);
+        $imageName = saveImage($foto, 'keluar', $siswaId);
 
-        jsonResponse(['success' => true, 'message' => 'Check-out berhasil! Jarak: ' . round($distance) . 'm', 'time' => date('H:i:s'), 'distance' => round($distance)]);
+        $stmt = $db->prepare("UPDATE presensi SET jam_keluar = ?, lat_keluar = ?, lng_keluar = ?, jarak_keluar = ?, foto_keluar = ? WHERE id = ?");
+        $stmt->execute([date('H:i:s'), $lat, $lng, round($distance, 2), $imageName, $todayRecord['id']]);
+
+        jsonResponse(['success' => true, 'message' => 'Check-out berhasil!', 'time' => date('H:i:s')]);
     }
 
+    // ... (izin/sakit handlers remain similar, stripped for brevity unless requested to be robust)
     if ($action === 'izin' || $action === 'sakit') {
-        if ($todayRecord) {
+        if ($todayRecord)
             jsonResponse(['success' => false, 'message' => 'Sudah ada data presensi hari ini.']);
-        }
         $keterangan = trim($input['keterangan'] ?? '');
         $stmt = $db->prepare("INSERT INTO presensi (siswa_id, tanggal, status, keterangan) VALUES (?, ?, ?, ?)");
         $stmt->execute([$siswaId, $today, $action, $keterangan]);
-        jsonResponse(['success' => true, 'message' => 'Data ' . $action . ' berhasil disimpan.']);
+        jsonResponse(['success' => true, 'message' => 'Pengajuan ' . $action . ' berhasil.']);
     }
 
     jsonResponse(['success' => false, 'message' => 'Aksi tidak valid.']);
@@ -99,95 +153,152 @@ include __DIR__ . '/../includes/sidebar.php';
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
     <?php if (!$placement): ?>
-        <div class="alert alert-warning">
-            <span><i class="fas fa-exclamation-triangle"></i> Anda belum ditempatkan di lokasi PKL. Hubungi guru/pengarah
-                untuk
-                penempatan.</span>
+        <div class="alert alert-warning animate-item">
+            <i class="fas fa-exclamation-triangle"></i> Anda belum ditempatkan di lokasi PKL.
+        </div>
+    <?php elseif (!$schedule): ?>
+        <div class="alert alert-danger animate-item">
+            <i class="fas fa-clock"></i> <strong>Perhatian:</strong> Jam Kerja belum disetujui. Silahkan ajukan jam kerja di
+            menu <a href="/siswa/jam_kerja.php" style="text-decoration:underline;">Jam Kerja</a> sebelum melakukan presensi.
         </div>
     <?php endif; ?>
 
     <div class="presensi-container">
-        <!-- Map -->
+        <!-- Card 1: Kamera & Aksi -->
+        <div class="card animate-item">
+            <div class="card-header mb-0">
+                <h3 class="card-title"><i class="fas fa-camera"
+                        style="margin-right:8px;color:var(--primary);"></i>Kamera & Presensi</h3>
+                <?php if ($todayRecord): ?>
+                    <?php
+                    $statusLabel = match ($todayRecord['status']) {
+                        'hadir' => $todayRecord['jam_keluar'] ? 'Selesai' : 'Sedang Bekerja',
+                        'izin' => 'Izin',
+                        'sakit' => 'Sakit',
+                        default => ucfirst($todayRecord['status'])
+                    };
+                    $statusBadge = match ($todayRecord['status']) {
+                        'hadir' => $todayRecord['jam_keluar'] ? 'badge-success' : 'badge-info',
+                        'izin' => 'badge-info',
+                        'sakit' => 'badge-warning',
+                        default => 'badge-primary'
+                    };
+                    ?>
+                    <span class="badge <?= $statusBadge ?>"><?= $statusLabel ?></span>
+                <?php endif; ?>
+            </div>
+
+            <!-- Camera Preview -->
+            <div class="camera-container"
+                style="position:relative;width:100%;height:240px;background:#000;border-radius:8px;overflow:hidden;margin-top:12px;">
+                <video id="camera" autoplay playsinline
+                    style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
+                <div id="cameraOverlay"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);color:white;text-align:center;">
+                    <span id="cameraStatusText">Mengakses Kamera...</span>
+                </div>
+                <button type="button" id="switchCamBtn" class="btn btn-sm btn-light"
+                    style="position:absolute;top:10px;right:10px;z-index:20;display:none;">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <canvas id="snapshot" style="display:none;"></canvas>
+
+            <!-- Action Buttons -->
+            <div style="margin-top:14px;">
+                <?php if (!$todayRecord): ?>
+                    <?php if ($placement && $schedule): ?>
+                        <button class="btn btn-success w-full" onclick="doCheckin()" id="checkinBtn"
+                            style="padding:14px;font-size:.95rem;">
+                            <i class="fas fa-camera"></i> Ambil Foto & Check-in
+                        </button>
+                        <div style="display:flex;gap:10px;margin-top:10px;">
+                            <button class="btn btn-outline w-full" onclick="openModal('izinModal')"
+                                style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                                <i class="fas fa-envelope" style="color:var(--info);"></i> Izin
+                            </button>
+                            <button class="btn btn-outline w-full" onclick="openModal('sakitModal')"
+                                style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                                <i class="fas fa-medkit" style="color:var(--warning);"></i> Sakit
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <div style="text-align:center;padding:10px 0;color:var(--text-muted);font-size:.85rem;">
+                            <i class="fas fa-info-circle" style="margin-right:4px;"></i>
+                            Lengkapi penempatan & jam kerja untuk mulai presensi.
+                        </div>
+                    <?php endif; ?>
+
+                <?php elseif ($todayRecord['status'] === 'izin'): ?>
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(59,130,246,0.08);border-radius:var(--radius-sm);">
+                        <i class="fas fa-envelope" style="font-size:1.2rem;color:var(--info);"></i>
+                        <div>
+                            <strong style="font-size:.9rem;color:var(--text-heading);">Izin Hari Ini</strong>
+                            <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px;">
+                                <?= htmlspecialchars($todayRecord['keterangan']) ?>
+                            </div>
+                        </div>
+                    </div>
+
+                <?php elseif ($todayRecord['status'] === 'sakit'): ?>
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(245,158,11,0.08);border-radius:var(--radius-sm);">
+                        <i class="fas fa-medkit" style="font-size:1.2rem;color:var(--warning);"></i>
+                        <div>
+                            <strong style="font-size:.9rem;color:var(--text-heading);">Sakit Hari Ini</strong>
+                            <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px;">
+                                <?= htmlspecialchars($todayRecord['keterangan']) ?>
+                            </div>
+                        </div>
+                    </div>
+
+                <?php elseif (!$todayRecord['jam_keluar']): ?>
+                    <div
+                        style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(16,185,129,0.08);border-radius:var(--radius-sm);margin-bottom:10px;">
+                        <i class="fas fa-check-circle" style="color:var(--success);font-size:1.1rem;"></i>
+                        <span style="font-size:.88rem;color:var(--text);">Masuk:
+                            <strong><?= formatJam($todayRecord['jam_masuk']) ?></strong></span>
+                    </div>
+                    <button class="btn btn-danger w-full" onclick="doCheckout()" id="checkoutBtn"
+                        style="padding:14px;font-size:.95rem;">
+                        <i class="fas fa-camera"></i> Ambil Foto & Check-out
+                    </button>
+
+                <?php else: ?>
+                    <div style="text-align:center;padding:16px 0;">
+                        <i class="fas fa-check-double" style="font-size:1.8rem;color:var(--success);margin-bottom:8px;"></i>
+                        <div style="font-size:.95rem;font-weight:600;color:var(--text-heading);">Presensi Selesai</div>
+                        <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px;">
+                            <?= formatJam($todayRecord['jam_masuk']) ?> — <?= formatJam($todayRecord['jam_keluar']) ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Card 2: Peta & GPS -->
         <div class="card animate-item">
             <div class="card-header mb-0">
                 <h3 class="card-title"><i class="fas fa-map-marked-alt"
-                        style="margin-right:8px;color:var(--primary);"></i>Lokasi Anda</h3>
+                        style="margin-right:8px;color:var(--primary);"></i>Lokasi</h3>
             </div>
-            <div class="map-container mt-2" id="attendanceMap"></div>
-            <div class="location-info mt-2" id="locationDetails">
+            <div class="map-container mt-2" id="attendanceMap" style="height:220px;border-radius:var(--radius-sm);">
+            </div>
+            <div class="location-info mt-2">
                 <div class="info-row">
                     <span class="info-label">Status GPS</span>
                     <span class="info-value" id="gpsStatus">Mendeteksi...</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Lokasi PKL</span>
-                    <span
-                        class="info-value"><?= htmlspecialchars($placement['nama_perusahaan'] ?? 'Belum ada') ?></span>
-                </div>
-                <div class="info-row">
                     <span class="info-label">Jarak</span>
                     <span class="info-value" id="distanceValue">-</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Radius Max</span>
-                    <span class="info-value"><?= $placement ? $placement['radius_meter'] . 'm' : '-' ?></span>
-                </div>
             </div>
-        </div>
-
-        <!-- Check-in Panel -->
-        <div class="card animate-item">
-            <div class="card-header mb-0">
-                <h3 class="card-title"><i class="fas fa-clock"
-                        style="margin-right:8px;color:var(--primary-light);"></i>Presensi Hari Ini</h3>
-            </div>
-
-            <div class="checkin-status" id="checkinStatus">
-                <?php if (!$todayRecord): ?>
-                    <div class="status-icon idle" id="statusIcon"><i class="fas fa-fingerprint"></i></div>
-                    <h3 style="color:var(--text-heading);margin-bottom:4px;">Belum Check-in</h3>
-                    <p style="color:var(--text-muted);font-size:.85rem;">Aktifkan GPS dan tekan tombol di bawah</p>
-                <?php elseif (!$todayRecord['jam_keluar']): ?>
-                    <div class="status-icon in" id="statusIcon"><i class="fas fa-check"></i></div>
-                    <h3 style="color:var(--success-light);margin-bottom:4px;">Sedang Bekerja</h3>
-                    <p style="color:var(--text-muted);font-size:.85rem;">Check-in:
-                        <?= formatJam($todayRecord['jam_masuk']) ?>
-                    </p>
-                <?php else: ?>
-                    <div class="status-icon done" id="statusIcon"><i class="fas fa-check-double"></i></div>
-                    <h3 style="color:var(--primary-light);margin-bottom:4px;">Selesai Hari Ini</h3>
-                    <p style="color:var(--text-muted);font-size:.85rem;"><?= formatJam($todayRecord['jam_masuk']) ?> —
-                        <?= formatJam($todayRecord['jam_keluar']) ?>
-                    </p>
-                <?php endif; ?>
-            </div>
-
-            <?php if ($placement): ?>
-                <div id="actionButtons">
-                    <?php if (!$todayRecord): ?>
-                        <button class="btn btn-success checkin-btn" onclick="doCheckin()" id="checkinBtn">
-                            <i class="fas fa-sign-in-alt"></i> Check-in
-                        </button>
-                        <div style="display:flex;gap:8px;margin-top:12px;">
-                            <button class="btn btn-outline w-full" onclick="openModal('izinModal')"><i
-                                    class="fas fa-envelope"></i> Izin</button>
-                            <button class="btn btn-outline w-full" onclick="openModal('sakitModal')"><i
-                                    class="fas fa-medkit"></i> Sakit</button>
-                        </div>
-                    <?php elseif (!$todayRecord['jam_keluar']): ?>
-                        <button class="btn btn-danger checkin-btn" onclick="doCheckout()" id="checkoutBtn">
-                            <i class="fas fa-sign-out-alt"></i> Check-out
-                        </button>
-                    <?php else: ?>
-                        <p style="text-align:center;color:var(--text-muted);font-size:.85rem;">Presensi hari ini sudah selesai.
-                            Silahkan presensi kembali esok hari.</p>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Attendance History -->
+    <!-- Riwayat Presensi -->
     <div class="card mt-3 animate-item">
         <div class="card-header">
             <h3 class="card-title"><i class="fas fa-history" style="margin-right:8px;color:var(--primary);"></i>Riwayat
@@ -208,12 +319,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
-                position: relative;
-                transition: transform 0.2s;
-            }
-
-            .history-item:active {
-                transform: scale(0.98);
             }
 
             .history-header {
@@ -249,9 +354,8 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <?php if (empty($history)): ?>
             <div class="empty-state">
-                <i class="fas fa-clipboard-list"
-                    style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 12px;"></i>
-                <h3 style="font-size: 1rem; color: var(--text-muted);">Belum ada riwayat</h3>
+                <i class="fas fa-clipboard-list" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
+                <h3 style="font-size:1rem;color:var(--text-muted);">Belum ada riwayat</h3>
             </div>
         <?php else: ?>
             <div class="history-list">
@@ -259,7 +363,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="history-item animate-item">
                         <div class="history-header">
                             <div class="history-date">
-                                <i class="far fa-calendar-alt" style="margin-right: 6px; color: var(--primary);"></i>
+                                <i class="far fa-calendar-alt" style="margin-right:6px;color:var(--primary);"></i>
                                 <?= formatTanggal($h['tanggal']) ?>
                             </div>
                             <?php
@@ -277,18 +381,17 @@ include __DIR__ . '/../includes/sidebar.php';
                         <?php if ($h['status'] === 'hadir'): ?>
                             <div class="history-time">
                                 <div>
-                                    <i class="fas fa-sign-in-alt text-success" style="margin-right: 4px;"></i>
+                                    <i class="fas fa-sign-in-alt text-success" style="margin-right:4px;"></i>
                                     Masuk: <strong><?= formatJam($h['jam_masuk']) ?></strong>
                                 </div>
                                 <div>
-                                    <i class="fas fa-sign-out-alt text-danger" style="margin-right: 4px;"></i>
+                                    <i class="fas fa-sign-out-alt text-danger" style="margin-right:4px;"></i>
                                     Keluar: <strong><?= formatJam($h['jam_keluar']) ?></strong>
                                 </div>
                             </div>
-
                             <div class="history-meta">
-                                <div style="color: var(--text-muted);">
-                                    <i class="fas fa-map-marker-alt" style="margin-right: 4px;"></i>
+                                <div style="color:var(--text-muted);">
+                                    <i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>
                                     Jarak:
                                     <?php if ($h['jarak_masuk']): ?>
                                         <span
@@ -299,15 +402,10 @@ include __DIR__ . '/../includes/sidebar.php';
                                         echo '-';
                                     endif; ?>
                                 </div>
-                                <?php if ($h['keterangan']): ?>
-                                    <div style="font-style: italic; color: var(--text-secondary);">
-                                        "<?= htmlspecialchars($h['keterangan']) ?>"
-                                    </div>
-                                <?php endif; ?>
                             </div>
                         <?php else: ?>
                             <div
-                                style="background: var(--bg-input); padding: 10px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                                style="background:var(--bg-input);padding:10px;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);">
                                 <strong>Keterangan:</strong> <?= htmlspecialchars($h['keterangan'] ?? '-') ?>
                             </div>
                         <?php endif; ?>
@@ -322,16 +420,21 @@ include __DIR__ . '/../includes/sidebar.php';
 <div class="modal-overlay" id="izinModal">
     <div class="modal">
         <div class="modal-header">
-            <h3 class="modal-title">Pengajuan Izin</h3><button class="modal-close"
-                onclick="closeModal('izinModal')">&times;</button>
+            <h3 class="modal-title"><i class="fas fa-envelope" style="margin-right:8px;color:var(--info);"></i>Pengajuan
+                Izin</h3>
+            <button class="modal-close" onclick="closeModal('izinModal')">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="form-group"><label class="form-label">Keterangan *</label><textarea id="izinKeterangan"
-                    class="form-control" rows="3" placeholder="Jelaskan alasan izin..." required></textarea></div>
+            <div class="form-group">
+                <label class="form-label">Keterangan <span style="color:var(--danger);">*</span></label>
+                <textarea id="izinKeterangan" class="form-control" rows="3" placeholder="Jelaskan alasan izin..."
+                    required></textarea>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal('izinModal')">Batal</button>
-            <button class="btn btn-primary" onclick="submitIzin('izin')"><i class="fas fa-check"></i> Kirim</button>
+            <button class="btn btn-primary" onclick="submitIzin('izin')"><i class="fas fa-check"></i> Kirim
+                Izin</button>
         </div>
     </div>
 </div>
@@ -340,106 +443,31 @@ include __DIR__ . '/../includes/sidebar.php';
 <div class="modal-overlay" id="sakitModal">
     <div class="modal">
         <div class="modal-header">
-            <h3 class="modal-title">Pengajuan Sakit</h3><button class="modal-close"
-                onclick="closeModal('sakitModal')">&times;</button>
+            <h3 class="modal-title"><i class="fas fa-medkit"
+                    style="margin-right:8px;color:var(--warning);"></i>Pengajuan Sakit</h3>
+            <button class="modal-close" onclick="closeModal('sakitModal')">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="form-group"><label class="form-label">Keterangan *</label><textarea id="sakitKeterangan"
-                    class="form-control" rows="3" placeholder="Jelaskan kondisi sakit..." required></textarea></div>
+            <div class="form-group">
+                <label class="form-label">Keterangan <span style="color:var(--danger);">*</span></label>
+                <textarea id="sakitKeterangan" class="form-control" rows="3" placeholder="Jelaskan kondisi sakit..."
+                    required></textarea>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal('sakitModal')">Batal</button>
-            <button class="btn btn-warning" onclick="submitIzin('sakit')"><i class="fas fa-check"></i> Kirim</button>
+            <button class="btn btn-warning" onclick="submitIzin('sakit')"><i class="fas fa-check"></i> Kirim
+                Sakit</button>
         </div>
     </div>
 </div>
 
 <script>
     const placementData = <?= json_encode($placement ?: null) ?>;
-    let map, userMarker, placeMarker, placeCircle, userPos = null;
+    let map, userMarker, placeCircle, userPos = null;
+    let videoStream = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const defaultLat = placementData ? parseFloat(placementData.latitude) : -6.2;
-        const defaultLng = placementData ? parseFloat(placementData.longitude) : 106.8;
-
-        map = L.map('attendanceMap').setView([defaultLat, defaultLng], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        // Show placement location
-        if (placementData) {
-            placeMarker = L.marker([defaultLat, defaultLng], {
-                icon: L.divIcon({
-                    html: '<div style="background:var(--primary);color:white;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(99,102,241,.5)"><i class="fas fa-building"></i></div>',
-                    className: '', iconSize: [30, 30], iconAnchor: [15, 15]
-                })
-            }).addTo(map).bindPopup(`<strong>${placementData.nama_perusahaan}</strong><br>${placementData.alamat}`);
-
-            placeCircle = L.circle([defaultLat, defaultLng], {
-                radius: parseInt(placementData.radius_meter),
-                color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.1, weight: 2, dashArray: '5, 10'
-            }).addTo(map);
-        }
-
-        trackLocation();
-    });
-
-    function trackLocation() {
-        if (!navigator.geolocation) {
-            document.getElementById('gpsStatus').textContent = 'GPS tidak didukung';
-            document.getElementById('gpsStatus').style.color = 'var(--danger-light)';
-            return;
-        }
-
-        // Check if running on secure context (HTTPS or localhost)
-        if (!window.isSecureContext) {
-            document.getElementById('gpsStatus').innerHTML = '<span style="color:var(--danger-light);">⚠️ HTTPS diperlukan</span>';
-            document.getElementById('distanceValue').innerHTML = '<a href="#" onclick="showHttpsHelp()" style="color:var(--warning);font-size:.78rem;text-decoration:underline;">Lihat solusi</a>';
-            return;
-        }
-
-        navigator.geolocation.watchPosition(
-            (pos) => {
-                userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                document.getElementById('gpsStatus').textContent = 'Aktif ✓';
-                document.getElementById('gpsStatus').style.color = 'var(--success-light)';
-
-                if (userMarker) {
-                    userMarker.setLatLng([userPos.lat, userPos.lng]);
-                } else {
-                    userMarker = L.marker([userPos.lat, userPos.lng], {
-                        icon: L.divIcon({
-                            html: '<div style="background:var(--success);color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(16,185,129,.5);border:2px solid white;"><i class="fas fa-user"></i></div>',
-                            className: '', iconSize: [26, 26], iconAnchor: [13, 13]
-                        })
-                    }).addTo(map).bindPopup('Posisi Anda');
-                }
-
-                if (placementData) {
-                    const dist = haversineDistance(userPos.lat, userPos.lng, parseFloat(placementData.latitude), parseFloat(placementData.longitude));
-                    const distEl = document.getElementById('distanceValue');
-                    distEl.textContent = formatDistance(dist);
-                    distEl.className = dist <= parseInt(placementData.radius_meter) ? 'info-value distance-ok' : 'info-value distance-far';
-                }
-            },
-            (err) => {
-                let msg = 'Error: ' + err.message;
-                if (err.code === 1) msg = 'GPS ditolak — izinkan akses lokasi di browser';
-                if (err.code === 2) msg = 'GPS tidak tersedia';
-                if (err.code === 3) msg = 'GPS timeout — coba lagi';
-                document.getElementById('gpsStatus').textContent = msg;
-                document.getElementById('gpsStatus').style.color = 'var(--danger-light)';
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
-        );
-    }
-
-    function showHttpsHelp() {
-        showToast('⚠️ GPS memerlukan HTTPS! Akses via localhost di PC, atau gunakan HTTPS/ngrok.', 'warning', 6000);
-    }
-
-    // Toast notification — replaces alert() to prevent mobile zoom issues
+    // ---- Toast Notification ----
     function showToast(msg, type = 'info', duration = 3500) {
         let container = document.getElementById('toastContainer');
         if (!container) {
@@ -454,58 +482,157 @@ include __DIR__ . '/../includes/sidebar.php';
         toast.style.cssText = `background:${colors[type] || colors.info};color:white;padding:14px 18px;border-radius:12px;font-size:.88rem;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;align-items:center;gap:10px;pointer-events:auto;animation:toastIn .4s cubic-bezier(.16,1,.3,1);font-family:Inter,sans-serif;`;
         toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${msg}</span>`;
         container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'toastOut .3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
+        setTimeout(() => { toast.style.animation = 'toastOut .3s ease forwards'; setTimeout(() => toast.remove(), 300); }, duration);
     }
-
-    // Add toast animations
+    // Toast animations
     if (!document.getElementById('toastStyles')) {
-        const style = document.createElement('style');
-        style.id = 'toastStyles';
-        style.textContent = `
-            @keyframes toastIn { from { opacity:0; transform:translateY(-20px) scale(.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-            @keyframes toastOut { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(-20px) scale(.95); } }
-        `;
-        document.head.appendChild(style);
+        const s = document.createElement('style'); s.id = 'toastStyles';
+        s.textContent = `@keyframes toastIn{from{opacity:0;transform:translateY(-20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes toastOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-20px) scale(.95)}}`;
+        document.head.appendChild(s);
     }
 
-    async function doCheckin() {
-        const btn = document.getElementById('checkinBtn');
-        if (!userPos) { showToast('Menunggu GPS... Pastikan lokasi aktif.', 'warning'); return; }
-        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Memproses...';
+    // ---- Camera Logic ----
+    async function initCamera() {
+        const video = document.getElementById('camera');
+        const overlay = document.getElementById('cameraOverlay');
+        const statusText = document.getElementById('cameraStatusText');
         try {
-            const res = await fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'checkin', latitude: userPos.lat, longitude: userPos.lng }) });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            video.srcObject = stream;
+            videoStream = stream;
+            overlay.style.display = 'none';
+        } catch (err) {
+            console.error('Camera Error:', err);
+            statusText.textContent = 'Gagal akses kamera: ' + err.message;
+            statusText.innerHTML += '<br><button class="btn btn-sm btn-primary mt-2" onclick="initCamera()">Coba Lagi</button>';
+        }
+    }
+
+    function capturePhoto() {
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('snapshot');
+        if (!videoStream) return null;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0);
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    // ---- Map & GPS ----
+    document.addEventListener('DOMContentLoaded', () => {
+        initCamera();
+
+        const defLat = placementData ? parseFloat(placementData.latitude) : -6.2;
+        const defLng = placementData ? parseFloat(placementData.longitude) : 106.8;
+
+        map = L.map('attendanceMap').setView([defLat, defLng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        if (placementData) {
+            L.marker([defLat, defLng]).addTo(map).bindPopup(placementData.nama_perusahaan);
+            L.circle([defLat, defLng], { radius: parseInt(placementData.radius_meter), color: '#6366f1', fillOpacity: 0.1 }).addTo(map);
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    document.getElementById('gpsStatus').textContent = 'Akurat (' + Math.round(pos.coords.accuracy) + 'm)';
+                    document.getElementById('gpsStatus').style.color = 'var(--success)';
+
+                    if (userMarker) userMarker.setLatLng([userPos.lat, userPos.lng]);
+                    else userMarker = L.marker([userPos.lat, userPos.lng]).addTo(map);
+
+                    if (placementData) {
+                        const d = haversineDistance(userPos.lat, userPos.lng, defLat, defLng);
+                        document.getElementById('distanceValue').textContent = formatDistance(d);
+                    }
+                },
+                (err) => {
+                    document.getElementById('gpsStatus').textContent = 'GPS Error: ' + err.message;
+                    document.getElementById('gpsStatus').style.color = 'var(--danger)';
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+            );
+        }
+    });
+
+    // ---- Checkin ----
+    async function doCheckin() {
+        if (!userPos) { showToast('Menunggu GPS... Pastikan lokasi aktif.', 'warning'); return; }
+        const photo = capturePhoto();
+        if (!photo) { showToast('Gagal mengambil foto. Pastikan kamera aktif.', 'danger'); return; }
+
+        const btn = document.getElementById('checkinBtn');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Memproses...';
+
+        try {
+            const res = await fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'checkin', latitude: userPos.lat, longitude: userPos.lng, foto: photo })
+            });
             const data = await res.json();
             if (data.success) { showToast(data.message, 'success'); setTimeout(() => location.reload(), 1500); }
-            else { showToast(data.message, 'danger', 4000); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Check-in'; }
-        } catch (e) { showToast('Error: ' + e.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Check-in'; }
+            else { showToast(data.message, 'danger', 4000); btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> Ambil Foto & Check-in'; }
+        } catch (e) { showToast('Error: ' + e.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> Ambil Foto & Check-in'; }
     }
 
+    // ---- Checkout ----
     async function doCheckout() {
-        const btn = document.getElementById('checkoutBtn');
         if (!userPos) { showToast('Menunggu GPS... Pastikan lokasi aktif.', 'warning'); return; }
         if (!confirm('Yakin ingin check-out?')) return;
+        const photo = capturePhoto();
+        if (!photo) { showToast('Gagal mengambil foto. Pastikan kamera aktif.', 'danger'); return; }
+
+        const btn = document.getElementById('checkoutBtn');
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Memproses...';
+
         try {
-            const res = await fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'checkout', latitude: userPos.lat, longitude: userPos.lng }) });
+            const res = await fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'checkout', latitude: userPos.lat, longitude: userPos.lng, foto: photo })
+            });
             const data = await res.json();
             if (data.success) { showToast(data.message, 'success'); setTimeout(() => location.reload(), 1500); }
-            else { showToast(data.message, 'danger', 4000); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Check-out'; }
-        } catch (e) { showToast('Error: ' + e.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Check-out'; }
+            else { showToast(data.message, 'danger', 4000); btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> Ambil Foto & Check-out'; }
+        } catch (e) { showToast('Error: ' + e.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> Ambil Foto & Check-out'; }
     }
 
+    // ---- Submit Izin / Sakit ----
     async function submitIzin(type) {
         const keterangan = document.getElementById(type + 'Keterangan').value.trim();
         if (!keterangan) { showToast('Keterangan wajib diisi.', 'warning'); return; }
         try {
-            const res = await fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: type, keterangan: keterangan, latitude: 0, longitude: 0 }) });
+            const res = await fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: type, keterangan: keterangan, latitude: 0, longitude: 0 })
+            });
             const data = await res.json();
-            if (data.success) { showToast(data.message, 'success'); setTimeout(() => location.reload(), 1500); }
-            else { showToast(data.message, 'danger', 4000); }
+            if (data.success) {
+                showToast(data.message, 'success');
+                closeModal(type + 'Modal');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(data.message, 'danger', 4000);
+            }
         } catch (e) { showToast('Error: ' + e.message, 'danger'); }
     }
+
+    // ---- Utils ----
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; const p1 = lat1 * Math.PI / 180; const p2 = lat2 * Math.PI / 180;
+        const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+    function formatDistance(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(2) + ' km'; }
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

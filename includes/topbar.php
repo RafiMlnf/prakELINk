@@ -16,7 +16,12 @@
             </span>
         </span>
         <span class="topbar-time" id="liveClock"></span>
-        <a href="<?= BASE_URL ?>/auth/logout.php" class="topbar-logout-btn" title="Logout">
+
+        <button class="topbar-btn" onclick="toggleDarkMode()" title="Ganti Tema">
+            <i class="fas fa-moon" id="darkModeIcon"></i>
+        </button>
+
+        <a href="<?= BASE_URL ?>/auth/logout.php" class="topbar-btn danger" title="Logout">
             <i class="fas fa-sign-out-alt"></i>
         </a>
     </div>

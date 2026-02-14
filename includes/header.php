@@ -34,7 +34,12 @@ $pageTitle = $pageTitle ?? 'PRAKELINK';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
     <!-- App CSS -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css?v=<?= time() ?>">
+
+    <!-- Dark Mode: apply saved theme before render to prevent flash -->
+    <script>
+        (function () { var t = localStorage.getItem('theme'); if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); })();
+    </script>
 </head>
 
 <body>

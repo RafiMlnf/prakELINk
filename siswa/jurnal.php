@@ -9,14 +9,28 @@ $db = getDB();
 $pageTitle = 'Jurnal PKL';
 $siswaId = $_SESSION['siswa_id'];
 
-// Mark jurnal notifications as read
-markNotifikasiRead($_SESSION['user_id'], 'jurnal');
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'add') {
+        // Enforce Check-in First
+        $checkAttn = $db->prepare("SELECT id FROM presensi WHERE siswa_id = ? AND tanggal = ? AND jam_masuk IS NOT NULL");
+        $checkAttn->execute([$siswaId, $_POST['tanggal']]);
+        if ($checkAttn->rowCount() === 0) {
+            setFlash('danger', 'Gagal: Anda belum melakukan Check-in Presensi pada tanggal ' . formatTanggal($_POST['tanggal']) . '.');
+            redirect('/siswa/jurnal.php');
+        }
+
+        // Check duplicate
+        $dup = $db->prepare("SELECT id FROM jurnal WHERE siswa_id = ? AND tanggal = ?");
+        $dup->execute([$siswaId, $_POST['tanggal']]);
+        if ($dup->rowCount() > 0) {
+            setFlash('danger', 'Anda sudah mengisi jurnal untuk tanggal ini.');
+            redirect('/siswa/jurnal.php');
+        }
+
         $foto = null;
         if (isset($_FILES['foto_kegiatan']) && $_FILES['foto_kegiatan']['error'] === UPLOAD_ERR_OK) {
             $foto = uploadFile($_FILES['foto_kegiatan'], 'jurnal');
@@ -77,6 +91,9 @@ $journals = $journals->fetchAll();
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
+
+// Mark jurnal notifications as read (AFTER sidebar renders badge count)
+markNotifikasiRead($_SESSION['user_id'], 'jurnal');
 ?>
 
 <main class="main-content">
