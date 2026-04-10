@@ -58,7 +58,7 @@ if ($user) {
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-brand">
-            <img src="<?= BASE_URL ?>/assets/img/logo2.svg" alt="Logo" class="brand-logo"
+            <img src="<?= BASE_URL ?>/assets/img/logoELINA.svg" alt="Logo" class="brand-logo"
                 style="width:220px;height:auto;">
         </div>
         <button class="sidebar-close" id="sidebarClose" onclick="toggleSidebar()">

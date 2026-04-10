@@ -1,7 +1,7 @@
 <?php
 /**
  * Authentication & Session Management
- * PRAKELINK — Authentication & Session Management
+ * ELINA — Authentication & Session Management
  */
 
 if (session_status() === PHP_SESSION_NONE) {

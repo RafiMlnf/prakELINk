@@ -1,12 +1,12 @@
 <?php
 /**
  * Application Configuration
- * PRAKELINK — Sistem Monitoring Prakerin SMKN 2 Garut
+ * ELINA — Sistem Monitoring Prakerin SMKN 2 Garut
  */
 
-define('APP_NAME', 'PRAKELINK');
+define('APP_NAME', 'ELINA');
 define('APP_VERSION', '1.0.0');
-define('BASE_URL', '/pkl-tracking');
+define('BASE_URL', '/ELINA');
 define('UPLOAD_DIR', __DIR__ . '/../assets/uploads/');
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
 
@@ -49,6 +49,29 @@ function formatTanggal($date)
     ];
     $dt = new DateTime($date);
     return $dt->format('d') . ' ' . $bulan[(int) $dt->format('m')] . ' ' . $dt->format('Y');
+}
+
+/**
+ * Helper: Format bulan tahun Indonesia
+ */
+function formatBulanTahun($date)
+{
+    $bulan = [
+        1 => 'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember'
+    ];
+    $dt = new DateTime($date);
+    return $bulan[(int) $dt->format('m')] . ' ' . $dt->format('Y');
 }
 
 /**

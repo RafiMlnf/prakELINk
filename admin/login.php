@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Admin Login — PRAKELINK Sistem Monitoring Prakerin">
+    <meta name="description" content="Admin Login — ELINA Sistem Monitoring Prakerin">
     <title>Admin Login —
         <?= APP_NAME ?>
     </title>
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-left">
             <div class="login-left-inner">
                 <div>
-                    <img src="<?= BASE_URL ?>/assets/img/logo2.svg" alt="Logo" class="brand-logo"
+                    <img src="<?= BASE_URL ?>/assets/img/logoELINA.svg" alt="Logo" class="brand-logo"
                         style="height:150px;width:auto;">
                 </div>
 
@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="lr-shape ls3"></div>
             </div>
             <div class="login-right-content">
-                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">prakELINk
+                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">ELINA
                 </h2>
                 <div
                     style="width: 60px; height: 4px; background: rgba(255,255,255,0.3); margin: 0 auto 24px; border-radius: 2px;">

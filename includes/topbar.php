@@ -15,13 +15,17 @@
                 <?= formatTanggal(date('Y-m-d')) ?>
             </span>
         </span>
-        <span class="topbar-time" id="liveClock"></span>
+        <span class="topbar-time hide-on-mobile" id="liveClock"></span>
+
+        <button id="pwaInstallBtn" class="topbar-btn" style="display:none; color: var(--primary);" title="Install Aplikasi" onclick="installPWA()">
+            <i class="fas fa-download"></i>
+        </button>
 
         <button class="topbar-btn" onclick="toggleDarkMode()" title="Ganti Tema">
             <i class="fas fa-moon" id="darkModeIcon"></i>
         </button>
 
-        <a href="<?= BASE_URL ?>/auth/logout.php" class="topbar-btn danger" title="Logout">
+        <a href="<?= BASE_URL ?>/auth/logout.php" class="topbar-btn danger hide-on-mobile" title="Logout">
             <i class="fas fa-sign-out-alt"></i>
         </a>
     </div>

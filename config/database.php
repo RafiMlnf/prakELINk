@@ -1,11 +1,11 @@
 <?php
 /**
  * Database Configuration
- * PRAKELINK — Database Configuration
+ * ELINA — Database Configuration
  */
 
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'pkl_tracking');
+define('DB_NAME', 'pkltracker_elina');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');

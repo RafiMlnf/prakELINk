@@ -156,33 +156,52 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
-    <!-- Attendance Chart -->
+    <!-- Attendance Chart using ApexCharts Heatmap -->
     <?php
-    // Fetch last 30 days attendance
-    $chartStart = date('Y-m-d', strtotime('-30 days'));
+    // Attendance Chart Month Filter
+    $selectedMonth = filter_input(INPUT_GET, 'month') ?: date('Y-m');
+    
+    // Validate format YYYY-MM
+    if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+        $selectedMonth = date('Y-m');
+    }
+    
+    // Ensure it doesn't go below 2026
+    $year = (int)substr($selectedMonth, 0, 4);
+    if ($year < 2026) {
+        $selectedMonth = '2026-01';
+    }
+
+    $chartStart = $selectedMonth . '-01';
+    $chartEnd = date('Y-m-t', strtotime($chartStart));
+
     $chartDataQuery = $db->prepare("
         SELECT tanggal, 
                SUM(CASE WHEN status = 'hadir' THEN 1 ELSE 0 END) as hadir,
-               SUM(CASE WHEN status IN ('izin', 'sakit', 'alpha') THEN 1 ELSE 0 END) as tidak_hadir
+               SUM(CASE WHEN status = 'izin' THEN 1 ELSE 0 END) as izin,
+               SUM(CASE WHEN status = 'sakit' THEN 1 ELSE 0 END) as sakit,
+               SUM(CASE WHEN status = 'alpha' THEN 1 ELSE 0 END) as alpha
         FROM presensi 
-        WHERE tanggal >= ?
+        WHERE tanggal BETWEEN ? AND ?
         GROUP BY tanggal
         ORDER BY tanggal ASC
     ");
-    $chartDataQuery->execute([$chartStart]);
+    $chartDataQuery->execute([$chartStart, $chartEnd]);
     $chartData = $chartDataQuery->fetchAll();
 
-    // Prepare arrays for Chart.js
     $dates = [];
     $hadir = [];
     $tidakHadir = [];
+    
+    $hadirData = [];
+    $izinData = [];
+    $sakitData = [];
+    $alphaData = [];
 
-    // Fill gaps if needed, but for now simple mapping
-    // To make it look nice like the image (smooth curve), we need continuous data
     $period = new DatePeriod(
         new DateTime($chartStart),
         new DateInterval('P1D'),
-        new DateTime(date('Y-m-d', strtotime('+1 day'))) // inclusive of today
+        new DateTime(date('Y-m-d', strtotime($chartEnd . ' +1 day')))
     );
 
     $mappedData = [];
@@ -192,27 +211,57 @@ include __DIR__ . '/../includes/sidebar.php';
 
     foreach ($period as $date) {
         $fmt = $date->format('Y-m-d');
-        $dates[] = $date->format('d M'); // 12 Jan
-        $hadir[] = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['hadir'] : 0;
-        $tidakHadir[] = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['tidak_hadir'] : 0;
+        $dateLabel = $date->format('d M');
+        $dates[] = $dateLabel;
+        
+        $hCount = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['hadir'] : 0;
+        $iCount = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['izin'] : 0;
+        $sCount = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['sakit'] : 0;
+        $aCount = isset($mappedData[$fmt]) ? (int) $mappedData[$fmt]['alpha'] : 0;
+
+        // For ChartJS
+        $hadir[] = $hCount;
+        $tidakHadir[] = $iCount + $sCount + $aCount;
+
+        // For ApexCharts Heatmap
+        $hadirData[] = ['x' => $dateLabel, 'y' => $hCount];
+        $izinData[] = ['x' => $dateLabel, 'y' => $iCount];
+        $sakitData[] = ['x' => $dateLabel, 'y' => $sCount];
+        $alphaData[] = ['x' => $dateLabel, 'y' => $aCount];
     }
     ?>
 
     <div class="card mb-3 animate-item">
-        <div class="card-header" style="justify-content:space-between;align-items:center;">
+        <div class="card-header" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
             <div>
-                <h3 class="card-title">Overview Kehadiran</h3>
-                <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Menampilkan chart kehadiran siswa 30 hari
-                    terakhir</p>
+                <h3 class="card-title"><i class="fas fa-chart-area" style="margin-right:8px;color:var(--primary);"></i>Statistik Kehadiran</h3>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Overview kehadiran siswa bulan <?= formatBulanTahun($chartStart) ?></p>
             </div>
-            <!--
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline active">30 Hari</button>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <form method="GET" action="" style="display:flex;gap:8px;">
+                    <input type="month" name="month" value="<?= htmlspecialchars($selectedMonth) ?>" min="2026-01" class="form-control" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:transparent;color:var(--text);font-family:inherit;font-size:0.8rem;width:auto;height:auto;">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding:6px 12px;"><i class="fas fa-filter"></i> Filter</button>
+                </form>
+                <div class="btn-group" style="display:flex;gap:4px;">
+                    <button type="button" class="btn btn-sm btn-outline active" id="btnShowLineChart" onclick="toggleChartMode('line')" style="padding:4px 12px;font-size:0.8rem;height:auto;">
+                        <i class="fas fa-chart-line"></i> Grafik
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline" id="btnShowHeatmap" onclick="toggleChartMode('heatmap')" style="padding:4px 12px;font-size:0.8rem;height:auto;">
+                        <i class="fas fa-fire"></i> Heatmap
+                    </button>
+                </div>
             </div>
-            -->
         </div>
-        <div style="height:350px;width:100%;padding:10px;">
-            <canvas id="attendanceChart"></canvas>
+        <div style="width:100%;padding:10px;">
+            <!-- Line Chart Container -->
+            <div id="lineChartContainer" style="height:350px;">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+            
+            <!-- Heatmap Container (Hidden by default) -->
+            <div id="heatmapContainer" style="display:none;width:100%;">
+                <div id="attendanceHeatmap"></div>
+            </div>
         </div>
     </div>
 
@@ -231,20 +280,43 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
+        // Global references
+        let lineChartInstance = null;
+
+        function toggleChartMode(mode) {
+            const btnLine = document.getElementById('btnShowLineChart');
+            const btnHeatmap = document.getElementById('btnShowHeatmap');
+            const containerLine = document.getElementById('lineChartContainer');
+            const containerHeatmap = document.getElementById('heatmapContainer');
+
+            if (mode === 'line') {
+                btnLine.classList.add('active');
+                btnHeatmap.classList.remove('active');
+                containerLine.style.display = 'block';
+                containerHeatmap.style.display = 'none';
+            } else {
+                btnHeatmap.classList.add('active');
+                btnLine.classList.remove('active');
+                containerHeatmap.style.display = 'block';
+                containerLine.style.display = 'none';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
+            // --- Init Chart.js Line Chart ---
             const ctx = document.getElementById('attendanceChart').getContext('2d');
 
-            // Create gradients
             const gradientHadir = ctx.createLinearGradient(0, 0, 0, 400);
-            gradientHadir.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); // Green
+            gradientHadir.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
             gradientHadir.addColorStop(1, 'rgba(16, 185, 129, 0)');
 
             const gradientTidak = ctx.createLinearGradient(0, 0, 0, 400);
-            gradientTidak.addColorStop(0, 'rgba(239, 68, 68, 0.4)'); // Red
+            gradientTidak.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
             gradientTidak.addColorStop(1, 'rgba(239, 68, 68, 0)');
 
-            new Chart(ctx, {
+            lineChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: <?= json_encode($dates) ?>,
@@ -277,55 +349,113 @@ include __DIR__ . '/../includes/sidebar.php';
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'top',
-                            align: 'end',
-                            labels: {
-                                usePointStyle: true,
-                                boxWidth: 8
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            titleColor: '#1e293b',
-                            bodyColor: '#475569',
-                            borderColor: '#e2e8f0',
-                            borderWidth: 1,
-                            padding: 10,
-                            displayColors: true
-                        }
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#1e293b', bodyColor: '#475569', borderColor: '#e2e8f0', borderWidth: 1, padding: 10, displayColors: true }
                     },
                     scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                maxTicksLimit: 10,
-                                color: '#94a3b8'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                borderDash: [2, 4],
-                                color: '#f1f5f9'
-                            },
-                            ticks: {
-                                stepSize: 1,
-                                color: '#94a3b8'
-                            }
-                        }
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, color: '#94a3b8' } },
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#f1f5f9' }, ticks: { stepSize: 1, color: '#94a3b8' } }
                     },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    }
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
                 }
             });
+
+            // --- Init ApexCharts Heatmap ---
+            var options = {
+                series: [{
+                    name: 'Hadir',
+                    data: <?= json_encode($hadirData) ?>
+                },
+                {
+                    name: 'Izin',
+                    data: <?= json_encode($izinData) ?>
+                },
+                {
+                    name: 'Sakit',
+                    data: <?= json_encode($sakitData) ?>
+                },
+                {
+                    name: 'Alpha',
+                    data: <?= json_encode($alphaData) ?>
+                }],
+                chart: {
+                    height: 350,
+                    type: 'heatmap',
+                    toolbar: { show: false },
+                    fontFamily: 'Inter, sans-serif'
+                },
+                plotOptions: {
+                    heatmap: {
+                        shadeIntensity: 0.5,
+                        radius: 4,
+                        useFillColorAsStroke: false,
+                        colorScale: {
+                            ranges: [{
+                                from: 0,
+                                to: 0,
+                                color: '#f1f5f9',
+                                name: 'Kosong'
+                            },
+                            {
+                                from: 1,
+                                to: 10,
+                                color: '#38bdf8',
+                                name: 'Rendah'
+                            },
+                            {
+                                from: 11,
+                                to: 50,
+                                color: '#3b82f6',
+                                name: 'Sedang'
+                            },
+                            {
+                                from: 51,
+                                to: 1000,
+                                color: '#1e3a8a',
+                                name: 'Tinggi'
+                            }]
+                        }
+                    }
+                },
+                dataLabels: {
+                    enabled: true,
+                    style: {
+                        colors: ['#fff']
+                    }
+                },
+                stroke: {
+                    width: 1,
+                    colors: ['#fff']
+                },
+                xaxis: {
+                    labels: {
+                        style: {
+                            colors: '#64748b',
+                            fontSize: '12px'
+                        }
+                    }
+                },
+                yaxis: {
+                    labels: {
+                        style: {
+                            colors: '#64748b',
+                            fontSize: '13px',
+                            fontWeight: 600
+                        }
+                    }
+                },
+                tooltip: {
+                    theme: 'light',
+                    y: {
+                        formatter: function(value) {
+                            return value + " Siswa";
+                        }
+                    }
+                }
+            };
+
+            var heatmapChart = new ApexCharts(document.querySelector("#attendanceHeatmap"), options);
+            heatmapChart.render();
         });
     </script>
 

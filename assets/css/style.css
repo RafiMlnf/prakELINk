@@ -1,5 +1,5 @@
 /* ============================================
-   PRAKELINK — Design System
+   ELINA — Design System
    Modern, Premium, Dark-Enhanced UI
    ============================================ */
 
@@ -1537,7 +1537,46 @@ select.form-control {
     }
 
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 12px;
+    }
+
+    .stat-card-body {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .stat-icon {
+        position: relative;
+        top: 0;
+        right: 0;
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+    }
+
+    .stat-info {
+        margin-top: 0;
+        width: 100%;
+    }
+
+    .stat-info h3 {
+        font-size: 0.65rem;
+        margin-bottom: 2px;
+        line-height: 1.3;
+        white-space: normal;
+    }
+
+    .stat-value {
+        font-size: 1.2rem !important;
+        word-break: break-word;
     }
 
     .login-card {
@@ -1552,6 +1591,10 @@ select.form-control {
 
     .topbar-date {
         display: none;
+    }
+
+    .hide-on-mobile {
+        display: none !important;
     }
 
     .jurnal-item {

@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Registrasi Siswa — PRAKELINK SMKN 2 Garut">
+    <meta name="description" content="Registrasi Siswa — ELINA SMKN 2 Garut">
     <title>Registrasi — <?= APP_NAME ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -186,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-left">
             <div class="login-left-inner">
                 <div style="text-align:left">
-                    <img src="<?= BASE_URL ?>/assets/img/logo2.svg" alt="Logo" class="brand-logo"
+                    <img src="<?= BASE_URL ?>/assets/img/logoELINA.svg" alt="Logo" class="brand-logo"
                         style="height:100px;width:auto;">
                 </div>
 
@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     style="font-weight:600;color:#334155;font-size:.85rem;">NISN</label>
                                 <input type="text" name="nisn" class="form-control" placeholder="10 digit NISN"
                                     value="<?= htmlspecialchars($_POST['nisn'] ?? '') ?>" required pattern="\d*"
-                                    inputmode="numeric"
+                                    inputmode="numeric" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);"
                                     style="height:42px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:.9rem;">
                             </div>
                             <div class="form-group" style="margin-bottom:16px;">
@@ -296,7 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="lr-shape ls3"></div>
             </div>
             <div class="login-right-content">
-                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">PRAKELINK
+                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">ELINA
                 </h2>
                 <div
                     style="width: 60px; height: 4px; background: rgba(255,255,255,0.3); margin: 0 auto 24px; border-radius: 2px;">

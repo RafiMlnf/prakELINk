@@ -1,5 +1,5 @@
 /**
- * PRAKELINK — Main Application JavaScript
+ * ELINA — Main Application JavaScript
  */
 
 // ---- Dark Mode (runs immediately to prevent flash) ----
@@ -166,3 +166,89 @@ function formatDistance(meters) {
     if (meters < 1000) return Math.round(meters) + ' m';
     return (meters / 1000).toFixed(1) + ' km';
 }
+
+// ---- Register Service Worker (PWA) ----
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/ELINA/sw.js')
+            .then(registration => {
+                console.log('ServiceWorker registered with scope:', registration.scope);
+            })
+            .catch(error => {
+                console.error('ServiceWorker registration failed:', error);
+            });
+    });
+}
+
+// ---- PWA Install Prompt ----
+let pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    pwaPrompt = e;
+    // Show the install button if exists
+    const btn = document.getElementById('pwaInstallBtn');
+    if (btn) btn.style.display = 'flex';
+});
+
+async function installPWA() {
+    if (!pwaPrompt) return;
+    pwaPrompt.prompt();
+    const { outcome } = await pwaPrompt.userChoice;
+    if (outcome === 'accepted') {
+        const btn = document.getElementById('pwaInstallBtn');
+        if (btn) btn.style.display = 'none';
+    }
+    pwaPrompt = null;
+}
+
+// ---- Live Notifications (WebAuth & API Polling) ----
+async function initLiveNotifications() {
+    // Only run if logged in (we assume logged in if sidebar exists)
+    if (!document.getElementById('sidebar')) return;
+
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // Initialize tracking ID if missing
+    if (!localStorage.getItem('elina_last_notif_id')) {
+        try {
+            const initRes = await apiFetch(`/ELINA/api/check_notif.php?init=1`);
+            if (initRes.success && initRes.max_id !== undefined) {
+                localStorage.setItem('elina_last_notif_id', initRes.max_id.toString());
+            } else {
+                localStorage.setItem('elina_last_notif_id', "0");
+            }
+        } catch (e) {
+            localStorage.setItem('elina_last_notif_id', "0");
+        }
+    }
+
+    setInterval(async () => {
+        const lastId = localStorage.getItem('elina_last_notif_id') || 0;
+        try {
+            const res = await apiFetch(`/ELINA/api/check_notif.php?last_id=${lastId}`);
+            if (res.success && res.data && res.data.length > 0) {
+                let maxId = parseInt(lastId);
+                res.data.forEach(notif => {
+                    if (parseInt(notif.id) > maxId) maxId = parseInt(notif.id);
+                    
+                    // Show Native Notification
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('Pemberitahuan ELINA', {
+                            body: notif.pesan,
+                            icon: '/ELINA/assets/img/logo2.png'
+                        });
+                    }
+                });
+                localStorage.setItem('elina_last_notif_id', maxId.toString());
+
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            }
+        } catch (e) {
+            // Silently ignore
+        }
+    }, 15000);
+}
+
+document.addEventListener('DOMContentLoaded', initLiveNotifications);

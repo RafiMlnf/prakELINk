@@ -244,7 +244,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <label class="form-label">NISN * <span
                                 style="font-weight:400;color:var(--text-muted);font-size:.75rem;">(digunakan sebagai
                                 login)</span></label>
-                        <input type="text" name="nisn" class="form-control" required>
+                        <input type="text" name="nisn" class="form-control" required maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Kelas *</label>

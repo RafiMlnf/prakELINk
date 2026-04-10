@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Login ke PRAKELINK — Sistem Monitoring Prakerin SMKN 2 Garut">
+    <meta name="description" content="Login ke ELINA — Sistem Monitoring Prakerin SMKN 2 Garut">
     <title>Login —
         <?= APP_NAME ?>
     </title>
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-left">
             <div class="login-left-inner">
                 <div>
-                    <img src="<?= BASE_URL ?>/assets/img/logo2.svg" alt="Logo" class="brand-logo"
+                    <img src="<?= BASE_URL ?>/assets/img/logoELINA.svg" alt="Logo" class="brand-logo"
                         style="height:150px;width:auto;">
                 </div>
                 <h1 style="font-size:1.8rem;font-weight:800;color:#0f172a;margin-bottom:6px;">Selamat Datang</h1>
@@ -84,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="text" name="nisn" class="form-control"
                                 style="padding-left:42px;height:48px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:.9rem;"
                                 placeholder="Masukkan NISN" value="<?= htmlspecialchars($_POST['nisn'] ?? '') ?>"
-                                required autofocus id="loginNisn" pattern="\d*" inputmode="numeric">
+                                required autofocus id="loginNisn" pattern="\d*" inputmode="numeric"
+                                maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);">
                         </div>
                     </div>
 
@@ -132,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="lr-shape ls3"></div>
             </div>
             <div class="login-right-content">
-                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">prakELINk
+                <h2 style="font-size:2.5rem;font-weight:800;color:white;margin-bottom:12px;line-height:1.2;">ELINA
                 </h2>
                 <div
                     style="width: 60px; height: 4px; background: rgba(255,255,255,0.3); margin: 0 auto 24px; border-radius: 2px;">

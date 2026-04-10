@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE)
     session_start();
 $user = currentUser();
 $flash = getFlash();
-$pageTitle = $pageTitle ?? 'PRAKELINK';
+$pageTitle = $pageTitle ?? 'ELINA';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -16,11 +16,18 @@ $pageTitle = $pageTitle ?? 'PRAKELINK';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description"
-        content="PRAKELINK — Sistem Monitoring Prakerin SMKN 2 Garut | Presensi Lokasi & Jurnal Digital">
+        content="ELINA — Sistem Monitoring Prakerin SMKN 2 Garut | Presensi Lokasi & Jurnal Digital">
     <title>
         <?= htmlspecialchars($pageTitle) ?> —
         <?= APP_NAME ?>
     </title>
+        <?= APP_NAME ?>
+    </title>
+
+    <!-- PWA Manifest & Theme Color -->
+    <link rel="manifest" href="<?= BASE_URL ?>/manifest.json">
+    <meta name="theme-color" content="#1c398e">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/logo2.png">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

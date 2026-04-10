@@ -1,6 +1,6 @@
-# PRAKELINK - Sistem Monitoring Prakerin SMKN 2 Garut
+# ELINA - Sistem Monitoring Prakerin SMKN 2 Garut
 
-**PRAKELINK** adalah aplikasi web untuk mempermudah monitoring kegiatan Praktek Kerja Industri (Prakerin/PKL) siswa jurusan Elektronika Industri di SMKN 2 Garut. Aplikasi ini mengintegrasikan presensi berbasis lokasi (GPS) dan jurnal kegiatan harian dalam satu platform yang mudah diakses.
+**ELINA** adalah aplikasi web untuk mempermudah monitoring kegiatan Praktek Kerja Industri (Prakerin/PKL) siswa jurusan Elektronika Industri di SMKN 2 Garut. Aplikasi ini mengintegrasikan presensi berbasis lokasi (GPS) dan jurnal kegiatan harian dalam satu platform yang mudah diakses.
 
 ## Fitur Utama
 
@@ -35,12 +35,12 @@
 ## Instalasi
 
 1. Clone repositori ini ke dalam folder root web server (htdocs/www).
-2. Buat database baru di MySQL (misal: `db_prakelink`).
+2. Buat database baru di MySQL (misal: `pkltracker_elina`).
 3. Import file database (jika tersedia) ke dalam database yang baru dibuat.
 4. Sesuaikan konfigurasi koneksi database di file `config/database.php`.
-5. Buka aplikasi melalui browser (contoh: `http://localhost/pkl-tracking`).
+5. Buka aplikasi melalui browser (contoh: `http://localhost/ELINA`).
 
 ---
 
 Dibuat untuk memenuhi kebutuhan monitoring Prakerin SMKN 2 Garut.
-# prakELINk
+# ELINA

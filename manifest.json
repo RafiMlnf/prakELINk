@@ -1,0 +1,23 @@
+{
+  "name": "ELINA - Prakerin SMKN 2 Garut",
+  "short_name": "ELINA",
+  "description": "Sistem Monitoring Prakerin SMKN 2 Garut",
+  "start_url": "/ELINA/auth/login.php",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1c398e",
+  "icons": [
+    {
+      "src": "/ELINA/assets/img/logo2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/ELINA/assets/img/logo2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
