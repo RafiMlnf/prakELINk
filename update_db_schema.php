@@ -26,6 +26,10 @@ try {
         $db->exec("ALTER TABLE siswa ADD COLUMN long_rumah DECIMAL(11, 8) NULL");
         echo "Added 'long_rumah' to siswa.\n";
     }
+    if (!in_array('alamat_kost', $cols)) {
+        $db->exec("ALTER TABLE siswa ADD COLUMN alamat_kost TEXT NULL");
+        echo "Added 'alamat_kost' to siswa.\n";
+    }
     // Check if user_id exists (it should based on previous code)
     if (!in_array('user_id', $cols)) {
         // This would be a bigger issue as logic depends on it, but assuming it exists.

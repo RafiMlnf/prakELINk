@@ -146,6 +146,8 @@ $requests = $requests->fetchAll();
 $hasPlacement = $db->prepare("SELECT penempatan_id FROM siswa WHERE id = ? AND penempatan_id IS NOT NULL");
 $hasPlacement->execute([$siswaId]);
 $hasPlacement = $hasPlacement->fetch();
+// Fetch cache existing placements for autocomplete
+$cachedPlacements = $db->query("SELECT * FROM penempatan WHERE is_active = 1 ORDER BY nama_perusahaan ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -154,12 +156,26 @@ include __DIR__ . '/../includes/sidebar.php';
 markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
 ?>
 
+<?php
+$hasPendingRequest = false;
+foreach ($requests as $r) {
+    if (in_array($r['status'], ['pending', 'revisi'])) {
+        $hasPendingRequest = true;
+        break;
+    }
+}
+?>
+
 <main class="main-content">
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
-    <?php if ($hasPlacement): ?>
+    <?php if ($hasPlacement && !$hasPendingRequest): ?>
+        <div class="alert alert-info mb-3">
+            <span><i class="fas fa-info-circle"></i> Anda terdaftar di tempat PKL aktif. Jika Anda <strong>mutasi / pindah tempat</strong>, silakan buat pengajuan baru.</span>
+        </div>
+    <?php elseif ($hasPlacement && $hasPendingRequest): ?>
         <div class="alert alert-success mb-3">
-            <span><i class="fas fa-check-circle"></i> Anda sudah memiliki penempatan PKL yang aktif.</span>
+            <span><i class="fas fa-check-circle"></i> Anda memiliki penempatan aktif. Pengajuan mutasi/pindah lokasi Anda sedang diproses.</span>
         </div>
     <?php endif; ?>
 
@@ -169,9 +185,14 @@ markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
                 <i class="fas fa-file-signature" style="margin-right:8px;color:var(--primary-light);"></i>Pengajuan
                 Penempatan PKL
             </h3>
-            <?php if (!$hasPlacement): ?>
+            <?php if (!$hasPendingRequest && !$hasPlacement): ?>
                 <button class="btn btn-primary btn-sm" onclick="openAddModal()">
                     <i class="fas fa-plus"></i> Ajukan Baru
+                </button>
+            <?php elseif ($hasPlacement && empty($requests) && !$hasPendingRequest): ?>
+                <!-- Fallback button if student has placement but no recorded submission -->
+                <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                    <i class="fas fa-exchange-alt"></i> Ajukan Pindah Lokasi
                 </button>
             <?php endif; ?>
         </div>
@@ -301,6 +322,12 @@ markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
                             </div>
                         </div>
                         <div class="jurnal-actions">
+                            <?php if ($r['status'] === 'disetujui' && $hasPlacement && !$hasPendingRequest): ?>
+                                <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                                    <i class="fas fa-exchange-alt"></i> Pindah Lokasi
+                                </button>
+                            <?php endif; ?>
+
                             <?php if (in_array($r['status'], ['pending', 'revisi'])): ?>
                                 <button class="btn btn-outline btn-sm" title="Edit" onclick='editPengajuan(<?= json_encode($r) ?>)'>
                                     <i class="fas fa-edit"></i>
@@ -337,14 +364,19 @@ markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
                     style="font-size:.85rem;color:var(--primary-light);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">
                     <i class="fas fa-building" style="margin-right:6px;"></i>Data Perusahaan/Instansi
                 </h4>
-                <div class="form-group">
-                    <label class="form-label">Nama Perusahaan/Instansi *</label>
-                    <input type="text" name="nama_perusahaan" class="form-control"
-                        placeholder="Contoh: PT Teknologi Nusantara" required>
+                <div class="form-group" style="position:relative;">
+                    <label class="form-label">Nama Perusahaan/Instansi * <span
+                            style="color:var(--info); font-size:0.75rem; font-weight:normal; margin-left:8px;"></span></label>
+                    <input type="text" name="nama_perusahaan" id="addNamaPerusahaan" class="form-control"
+                        placeholder="Ketik 'pindad', 'len', atau nama perusahaan lain..." autocomplete="off"
+                        onkeyup="searchCompany(this.value)" onfocus="searchCompany(this.value)" required>
+                    <div id="autocompleteResults"
+                        style="display:none; position:absolute; z-index:1000; background:var(--bg-card); width:100%; border:1px solid var(--border); border-radius:4px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px rgba(0,0,0,0.3); margin-top:4px;">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Alamat Lengkap *</label>
-                    <textarea name="alamat_perusahaan" class="form-control" rows="2"
+                    <textarea name="alamat_perusahaan" id="addAlamat" class="form-control" rows="2"
                         placeholder="Alamat lengkap perusahaan" required></textarea>
                 </div>
                 <div class="form-row">
@@ -362,7 +394,8 @@ markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">No. Telepon Perusahaan</label>
-                        <input type="text" name="no_telp_perusahaan" class="form-control" placeholder="021-xxxxxxx">
+                        <input type="text" name="no_telp_perusahaan" id="addTelp" class="form-control"
+                            placeholder="021-xxxxxxx">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Email Perusahaan</label>
@@ -660,6 +693,104 @@ markNotifikasiRead($_SESSION['user_id'], 'pengajuan');
             });
         }, 300);
     }
+
+    const companyCache = <?= json_encode($cachedPlacements) ?>;
+
+    function applyCompanyCache(index) {
+        if (index === '') {
+            document.getElementById('addNamaPerusahaan').value = '';
+            document.getElementById('addAlamat').value = '';
+            const t = document.getElementById('addTelp');
+            if (t) t.value = '';
+            return;
+        }
+
+        const c = companyCache[index];
+        document.getElementById('addNamaPerusahaan').value = c.nama_perusahaan;
+        document.getElementById('addAlamat').value = c.alamat;
+        const t = document.getElementById('addTelp');
+        if (t && c.kontak_perusahaan) {
+            t.value = c.kontak_perusahaan;
+        }
+
+        if (c.latitude && c.longitude) {
+            const lat = parseFloat(c.latitude);
+            const lng = parseFloat(c.longitude);
+            document.getElementById('addLat').value = lat.toFixed(8);
+            document.getElementById('addLng').value = lng.toFixed(8);
+
+            const pos = [lat, lng];
+            if (addMap) {
+                addMap.setView(pos, 15);
+                if (addMarker) addMap.removeLayer(addMarker);
+                if (addCircle) addMap.removeLayer(addCircle);
+
+                addMarker = L.marker(pos, { draggable: true }).addTo(addMap);
+                addCircle = L.circle(pos, { radius: 50, color: '#1c398e', fillColor: '#1c398e', fillOpacity: 0.12, weight: 2, dashArray: '5, 10' }).addTo(addMap);
+
+                addMarker.on('dragend', function (ev) {
+                    const newPos = ev.target.getLatLng();
+                    document.getElementById('addLat').value = newPos.lat.toFixed(8);
+                    document.getElementById('addLng').value = newPos.lng.toFixed(8);
+                    addCircle.setLatLng(newPos);
+                    document.getElementById('addMapInfo').innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;color:var(--success-light);"></i> Lokasi: ' + newPos.lat.toFixed(6) + ', ' + newPos.lng.toFixed(6) + ' <span class="badge badge-primary" style="margin-left:6px;">Radius 50m</span>';
+                });
+
+                document.getElementById('addMapInfo').innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;color:var(--success-light);"></i> Lokasi: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + ' <span class="badge badge-primary" style="margin-left:6px;">Radius 50m</span>';
+            }
+        }
+    }
+
+    function searchCompany(query) {
+        const resultsDiv = document.getElementById('autocompleteResults');
+        if (!query || query.length < 2) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        query = query.toLowerCase();
+        let matches = [];
+        for (let i = 0; i < companyCache.length; i++) {
+            if (companyCache[i].nama_perusahaan.toLowerCase().includes(query)) {
+                matches.push({ index: i, data: companyCache[i] });
+            }
+        }
+
+        if (matches.length > 0) {
+            let html = '';
+            matches.forEach(m => {
+                html += `<div style="padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; transition:all 0.2s;" 
+                              onmouseover="this.style.background='var(--primary)'; this.style.color='white';" 
+                              onmouseout="this.style.background='transparent'; this.style.color='';"
+                              onclick="selectCompany(${m.index})">
+                            <div style="font-weight:600; font-size:.9rem;">${m.data.nama_perusahaan}</div>
+                            <div style="font-size:.75rem; opacity:0.8;">${m.data.alamat.substring(0, 60)}...</div>
+                         </div>`;
+            });
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        } else {
+            resultsDiv.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-secondary); font-size:0.85rem;">
+                <i class="fas fa-info-circle" style="margin-bottom:6px; font-size:1.2rem; color:var(--info);"></i><br>
+                Tidak ditemukan di database.<br><strong>Silakan lanjutkan pengetikan secara manual</strong>.
+            </div>`;
+            resultsDiv.style.display = 'block';
+        }
+    }
+
+    function selectCompany(index) {
+        const resultsDiv = document.getElementById('autocompleteResults');
+        resultsDiv.style.display = 'none';
+        applyCompanyCache(index);
+    }
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', function (e) {
+        if (e.target.id !== 'addNamaPerusahaan') {
+            const resultsDiv = document.getElementById('autocompleteResults');
+            if (resultsDiv) resultsDiv.style.display = 'none';
+        }
+    });
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

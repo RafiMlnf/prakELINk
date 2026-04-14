@@ -9,6 +9,15 @@ $db = getDB();
 $pageTitle = 'Jurnal PKL';
 $siswaId = $_SESSION['siswa_id'];
 
+// Get student info for required checks
+$cekSiswa = $db->prepare("SELECT alamat_kost FROM siswa WHERE id = ?");
+$cekSiswa->execute([$siswaId]);
+$siswaAlamat = $cekSiswa->fetchColumn();
+
+if (empty($siswaAlamat)) {
+    setFlash('danger', '<strong>Perhatian!</strong> Anda wajib melengkapi Alamat Kost / Tempat Tinggal PKL sebelum mengakses Jurnal.');
+    redirect('/siswa/profil.php');
+}
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -104,7 +113,7 @@ markNotifikasiRead($_SESSION['user_id'], 'jurnal');
             <h3 class="card-title"><i class="fas fa-book-open" style="margin-right:8px;color:var(--primary);"></i>Jurnal
                 Kegiatan PKL</h3>
             <button class="btn btn-primary btn-sm" onclick="openModal('addJurnalModal')">
-                <i class="fas fa-plus"></i> Tulis Jurnal
+                <i class="fas fa-plus"></i> <span class="hide-on-mobile">Tulis Jurnal</span>
             </button>
         </div>
 

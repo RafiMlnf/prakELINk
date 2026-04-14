@@ -11,6 +11,12 @@ if (isLoggedIn()) {
 }
 
 $error = '';
+$flash = getFlash();
+if ($flash) {
+    // Apabila ada flash message, tampung ke variabel error supaya tampil
+    $error = $flash['message'];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ...
     $nisn = trim($_POST['nisn'] ?? '');
@@ -110,6 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-sign-in-alt"></i> Masuk
                     </button>
                 </form>
+
+                <!-- Tombol Login Google -->
+                <div style="margin-top: 15px; text-align: center;">
+                    <p style="font-size: .85rem; color: #64748b; margin-bottom: 12px; position: relative;">
+                        <span style="background: #fff; padding: 0 10px; position: relative; z-index: 1;">Atau masuk dengan</span>
+                        <span style="position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: #e2e8f0; z-index: 0;"></span>
+                    </p>
+                    <a href="<?= BASE_URL ?>/auth/google_login.php"
+                        style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 48px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; font-size: .95rem; font-weight: 600; color: #334155; text-decoration: none; transition: background 0.2s;">
+                        <img src="https://www.google.com/favicon.ico" alt="Google" style="width: 20px; height: 20px;">
+                        Google Workspace
+                    </a>
+                </div>
 
                 <div style="text-align:center;margin-top:20px;font-size:.85rem;color:#64748b;">
                     Belum punya akun? <a href="<?= BASE_URL ?>/auth/register.php"

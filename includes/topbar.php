@@ -34,7 +34,7 @@
 <?php if ($flash): ?>
     <div class="alert alert-<?= $flash['type'] ?>" id="flashAlert">
         <span>
-            <?= htmlspecialchars($flash['message']) ?>
+            <?= $flash['message'] ?>
         </span>
         <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
     </div>

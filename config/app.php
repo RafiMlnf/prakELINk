@@ -4,11 +4,27 @@
  * ELINA — Sistem Monitoring Prakerin SMKN 2 Garut
  */
 
+// Load .env file if it exists
+$envFile = __DIR__ . '/../.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        [$key, $value] = array_map('trim', explode('=', $line, 2));
+        if (!empty($key)) putenv("$key=$value");
+    }
+}
+
 define('APP_NAME', 'ELINA');
 define('APP_VERSION', '1.0.0');
 define('BASE_URL', '/ELINA');
 define('UPLOAD_DIR', __DIR__ . '/../assets/uploads/');
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
+
+// Google OAuth Configuration
+// Simpan Client ID dan Secret di file .env (jangan di-commit ke git!)
+define('GOOGLE_CLIENT_ID', getenv('GOOGLE_CLIENT_ID') ?: '');
+define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET') ?: '');
+define('GOOGLE_REDIRECT_URL', BASE_URL . '/auth/google_callback.php');
 
 
 // Ensure upload directory exists

@@ -10,6 +10,16 @@ $db = getDB();
 $pageTitle = 'Presensi';
 $siswaId = $_SESSION['siswa_id'];
 
+// Get student info for required checks
+$cekSiswa = $db->prepare("SELECT alamat_kost FROM siswa WHERE id = ?");
+$cekSiswa->execute([$siswaId]);
+$siswaAlamat = $cekSiswa->fetchColumn();
+
+if (empty($siswaAlamat)) {
+    setFlash('danger', '<strong>Perhatian!</strong> Anda wajib melengkapi Alamat Kost / Tempat Tinggal PKL sebelum melakukan presensi.');
+    redirect('/siswa/profil.php');
+}
+
 // Get placement info
 $placement = $db->prepare("
     SELECT p.* FROM penempatan p

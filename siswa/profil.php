@@ -7,19 +7,35 @@ requireRole('siswa');
 
 $db = getDB();
 $pageTitle = 'Profil Saya';
-$siswaId = $_SESSION['siswa_id'];
+$userId = $_SESSION['user_id'];
 
 // Fetch full profile
-$profile = $db->prepare("
-    SELECT u.*, s.nisn, s.kelas, s.jurusan, s.no_hp,
+$profileStmt = $db->prepare("
+    SELECT u.*, s.nisn, s.kelas, s.jurusan, s.no_hp, s.alamat_kost,
            p.nama_perusahaan, p.alamat as alamat_pkl
     FROM users u
-    JOIN siswa s ON s.user_id = u.id
+    LEFT JOIN siswa s ON s.user_id = u.id
     LEFT JOIN penempatan p ON s.penempatan_id = p.id
-    WHERE s.id = ?
+    WHERE u.id = ?
 ");
-$profile->execute([$siswaId]);
-$profile = $profile->fetch();
+$profileStmt->execute([$userId]);
+$profile = $profileStmt->fetch();
+
+// Fallback jika data tidak ditemukan (misal relasi siswa hilang)
+if (!$profile) {
+    $profile = [
+        'id' => $_SESSION['user_id'],
+        'nama_lengkap' => $_SESSION['nama_lengkap'] ?? 'User',
+        'email' => '',
+        'foto' => $_SESSION['foto'] ?? '',
+        'no_hp' => '',
+        'alamat_kost' => '',
+        'nisn' => '',
+        'kelas' => '',
+        'jurusan' => '',
+        'nama_perusahaan' => 'Belum ditempatkan'
+    ];
+}
 
 // Handle update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -29,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $namaLengkap = trim($_POST['nama_lengkap']);
         $email = trim($_POST['email'] ?? '');
         $noHp = trim($_POST['no_hp'] ?? '');
+        $alamatKost = trim($_POST['alamat_kost'] ?? '');
         $userId = $profile['id'];
 
         // Handle Photo Upload (cropped base64 or fallback to file)
@@ -101,9 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $photoPath,
             $userId
         ]);
-        $db->prepare("UPDATE siswa SET no_hp = ? WHERE id = ?")->execute([
+        $db->prepare("UPDATE siswa SET no_hp = ?, alamat_kost = ? WHERE user_id = ?")->execute([
             $noHp,
-            $siswaId
+            $alamatKost,
+            $userId
         ]);
 
         $_SESSION['nama_lengkap'] = $namaLengkap;
@@ -190,7 +208,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <?php else: ?>
                             <div id="avatarPlaceholder"
                                 style="width:100%;height:100%;background:linear-gradient(135deg,var(--primary),var(--accent));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:white;border:3px solid var(--primary-light);">
-                                <?= strtoupper(substr($profile['nama_lengkap'], 0, 1)) ?>
+                                <?= strtoupper(substr($profile['nama_lengkap'] ?? 'U', 0, 1)) ?>
                             </div>
                             <img src="" alt="Foto Profil" id="avatarPreview"
                                 style="width:100%;height:100%;object-fit:cover;border-radius:50%;border:3px solid var(--primary-light);display:none;position:absolute;top:0;left:0;">
@@ -205,7 +223,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
 
                     <h3 style="color:var(--text-heading);margin-bottom:4px;">
-                        <?= htmlspecialchars($profile['nama_lengkap']) ?>
+                        <?= htmlspecialchars($profile['nama_lengkap'] ?? 'Nama Profile') ?>
                     </h3>
 
 
@@ -219,7 +237,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div class="form-group">
                     <label class="form-label">Nama Lengkap</label>
                     <input type="text" name="nama_lengkap" class="form-control"
-                        value="<?= htmlspecialchars($profile['nama_lengkap']) ?>" required>
+                        value="<?= htmlspecialchars($profile['nama_lengkap'] ?? '') ?>" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Email</label>
@@ -230,6 +248,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="form-label">No. HP</label>
                     <input type="text" name="no_hp" class="form-control"
                         value="<?= htmlspecialchars($profile['no_hp'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alamat Kost / Tempat Tinggal PKL <span style="color:red;">*</span></label>
+                    <textarea name="alamat_kost" class="form-control" rows="3" placeholder="Masukkan alamat lengkap tempat tinggal selama PKL" required><?= htmlspecialchars($profile['alamat_kost'] ?? '') ?></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary w-full">
                     <i class="fas fa-save"></i> Simpan Perubahan
@@ -248,17 +270,17 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="info-row"
                         style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
                         <span style="color:var(--text-muted);font-size:.85rem;">NISN</span>
-                        <span style="font-weight:600;"><?= htmlspecialchars($profile['nisn']) ?></span>
+                        <span style="font-weight:600;"><?= htmlspecialchars($profile['nisn'] ?? '-') ?></span>
                     </div>
                     <div class="info-row"
                         style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
                         <span style="color:var(--text-muted);font-size:.85rem;">Kelas</span>
-                        <span style="font-weight:600;"><?= htmlspecialchars($profile['kelas']) ?></span>
+                        <span style="font-weight:600;"><?= htmlspecialchars($profile['kelas'] ?? '-') ?></span>
                     </div>
                     <div class="info-row"
                         style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
                         <span style="color:var(--text-muted);font-size:.85rem;">Jurusan</span>
-                        <span style="font-weight:600;"><?= htmlspecialchars($profile['jurusan']) ?></span>
+                        <span style="font-weight:600;"><?= htmlspecialchars($profile['jurusan'] ?? '-') ?></span>
                     </div>
                     <div class="info-row" style="display:flex;justify-content:space-between;padding:8px 0;">
                         <span style="color:var(--text-muted);font-size:.85rem;">Penempatan</span>
@@ -267,6 +289,10 @@ include __DIR__ . '/../includes/sidebar.php';
                         </span>
                     </div>
                 </div>
+                
+                <a href="<?= BASE_URL ?>/siswa/kartu_pkl.php" class="btn btn-outline" style="width:100%;margin-top:20px;justify-content:center;border-style:dashed;border-width:2px;">
+                    <i class="fas fa-id-badge" style="margin-right:8px;"></i> Cetak / Unduh ID Card PKL
+                </a>
             </div>
 
             <!-- Change Password -->

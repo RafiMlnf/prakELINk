@@ -28,18 +28,6 @@ $todayPresensi = $db->prepare("SELECT * FROM presensi WHERE siswa_id = ? AND tan
 $todayPresensi->execute([$siswaId, $today]);
 $todayPresensi = $todayPresensi->fetch();
 
-// Stats
-$totalHadir = $db->prepare("SELECT COUNT(*) FROM presensi WHERE siswa_id = ? AND status = 'hadir'");
-$totalHadir->execute([$siswaId]);
-$totalHadir = $totalHadir->fetchColumn();
-
-$totalJurnal = $db->prepare("SELECT COUNT(*) FROM jurnal WHERE siswa_id = ?");
-$totalJurnal->execute([$siswaId]);
-$totalJurnal = $totalJurnal->fetchColumn();
-
-$jurnalDisetujui = $db->prepare("SELECT COUNT(*) FROM jurnal WHERE siswa_id = ? AND status = 'disetujui'");
-$jurnalDisetujui->execute([$siswaId]);
-$jurnalDisetujui = $jurnalDisetujui->fetchColumn();
 
 // Recent journals
 $recentJurnal = $db->prepare("SELECT * FROM jurnal WHERE siswa_id = ? ORDER BY tanggal DESC LIMIT 5");
@@ -120,26 +108,7 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
-    <?php if (!$todayPresensi): ?>
-        <!-- Reminder Presensi -->
-        <div class="card mb-3 animate-item" style="background:#fffbeb;border:1px solid #fde68a;">
-            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                <div
-                    style="width:46px;height:46px;border-radius:50%;background:#ffcc00;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="fas fa-bell" style="font-size:1.2rem;color:#1a1a00;"></i>
-                </div>
-                <div style="flex:1;min-width:200px;">
-                    <strong style="color:#92400e;font-size:.95rem;">Jangan lupa presensi hari ini!</strong>
-                    <p style="color:#a16207;font-size:.82rem;margin-top:2px;">Pastikan melakukan absen masuk sebelum
-                        memulai kegiatan PKL. Presensi penting sebagai bukti kehadiran.</p>
-                </div>
-                <a href="<?= BASE_URL ?>/siswa/presensi.php" class="btn btn-warning btn-sm"
-                    style="font-weight:700;white-space:nowrap;">
-                    <i class="fas fa-map-marker-alt"></i> Absen Sekarang
-                </a>
-            </div>
-        </div>
-    <?php endif; ?>
+
 
     <?php
     // Fetch recent unread notifications
@@ -148,12 +117,12 @@ include __DIR__ . '/../includes/sidebar.php';
     $unreadNotifs = $notifStmt->fetchAll();
     ?>
     <?php if (!empty($unreadNotifs)): ?>
-        <div class="card mb-3 animate-item" style="border-left:4px solid #ef4444;padding:0;overflow:hidden;">
+        <div class="card mb-3 animate-item" style="border-left:4px solid var(--danger);padding:0;overflow:hidden;">
             <div
                 style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span
-                        style="width:28px;height:28px;border-radius:50%;background:#ef4444;display:inline-flex;align-items:center;justify-content:center;">
+                        style="width:28px;height:28px;border-radius:50%;background:var(--danger);display:inline-flex;align-items:center;justify-content:center;">
                         <i class="fas fa-bell" style="color:white;font-size:.75rem;"></i>
                     </span>
                     <strong style="font-size:.9rem;color:var(--text-heading);">Notifikasi Baru</strong>
@@ -164,8 +133,8 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php foreach ($unreadNotifs as $notif): ?>
                     <?php
                     $notifIcon = match (true) {
-                        str_contains($notif['pesan'], 'disetujui') => ['fas fa-check-circle', '#22c55e'],
-                        str_contains($notif['pesan'], 'ditolak') => ['fas fa-times-circle', '#ef4444'],
+                        str_contains($notif['pesan'], 'disetujui') => ['fas fa-check-circle', '#00b84c'],
+                        str_contains($notif['pesan'], 'ditolak') => ['fas fa-times-circle', 'var(--danger)'],
                         default => ['fas fa-exclamation-circle', '#f59e0b']
                     };
                     ?>
@@ -198,77 +167,52 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     <?php endif; ?>
 
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card <?= $todayPresensi ? 'success' : 'warning' ?> animate-item">
-            <div class="stat-card-body">
-                <div class="stat-info">
-                    <h3>Status Hari Ini</h3>
-                    <div class="stat-value" style="font-size:1.2rem;">
-                        <?php if ($todayPresensi): ?>
-                            <?php if ($todayPresensi['jam_keluar']): ?>
-                                Selesai
-                            <?php else: ?>
-                                Hadir
-                            <?php endif; ?>
-                        <?php else: ?>
-                            Belum Absen
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="stat-icon"><i class="fas fa-clipboard-check"></i></div>
-            </div>
-        </div>
-        <div class="stat-card primary animate-item">
-            <div class="stat-card-body">
-                <div class="stat-info">
-                    <h3>Total Kehadiran</h3>
-                    <div class="stat-value">
-                        <?= $totalHadir ?>
-                    </div>
-                </div>
-                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-            </div>
-        </div>
-        <div class="stat-card info animate-item">
-            <div class="stat-card-body">
-                <div class="stat-info">
-                    <h3>Total Jurnal</h3>
-                    <div class="stat-value">
-                        <?= $totalJurnal ?>
-                    </div>
-                </div>
-                <div class="stat-icon"><i class="fas fa-book"></i></div>
-            </div>
-        </div>
-        <div class="stat-card success animate-item">
-            <div class="stat-card-body">
-                <div class="stat-info">
-                    <h3>Jurnal Disetujui</h3>
-                    <div class="stat-value">
-                        <?= $jurnalDisetujui ?>
-                    </div>
-                </div>
-                <div class="stat-icon"><i class="fas fa-check-double"></i></div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Quick Actions & Recent Journal -->
     <div class="grid-2">
-        <div class="card animate-item">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-bolt" style="margin-right:8px;color:var(--primary);"></i>Aksi
-                    Cepat</h3>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:12px;">
-                <a href="<?= BASE_URL ?>/siswa/presensi.php" class="btn btn-primary btn-lg w-full">
-                    <i class="fas fa-map-marker-alt"></i> Absen
-                </a>
-                <a href="<?= BASE_URL ?>/siswa/jurnal.php" class="btn btn-success btn-lg w-full">
-                    <i class="fas fa-edit"></i> Tulis Jurnal
-                </a>
-            </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-content:start;" class="animate-item">
+            <?php if (!$todayPresensi): ?>
+            <style>
+            @keyframes pulse-warning {
+                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 25, 25, 0.6); }
+                70% { transform: scale(1.02); box-shadow: 0 0 0 15px rgba(230, 25, 25, 0); }
+                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 25, 25, 0); }
+            }
+            .btn-absen-box {
+                background: var(--danger); /* Merah solid baru */
+                animation: pulse-warning 2s infinite;
+            }
+            </style>
+            <?php else: ?>
+            <style>
+            .btn-absen-box {
+                background: var(--primary); /* Biru reguler solid */
+            }
+            .btn-absen-box:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 20px rgba(28, 57, 142, 0.2);
+            }
+            </style>
+            <?php endif; ?>
+
+            <a href="<?= BASE_URL ?>/siswa/presensi.php" class="btn-absen-box" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;border-radius:20px;color:white;text-decoration:none;text-align:center;height:100%;transition:all .3s ease;">
+                <div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+                    <i class="<?= !$todayPresensi ? 'fas fa-exclamation-circle' : 'fas fa-map-marker-alt' ?>" style="font-size:2rem;color:white;"></i>
+                </div>
+                <span style="font-size:1.15rem;font-weight:700;margin-bottom:4px;">Absen</span>
+                <span style="font-size:.75rem;color:rgba(255,255,255,0.8);font-weight:500;">
+                    <?= !$todayPresensi ? 'Wajib isi sekarang!' : 'Sudah Absen' ?>
+                </span>
+            </a>
+
+            <a href="<?= BASE_URL ?>/siswa/jurnal.php" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;border-radius:20px;background:var(--success);color:white;text-decoration:none;text-align:center;height:100%;transition:all .3s ease;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 10px 20px rgba(0, 184, 76, 0.3)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+                <div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+                    <i class="fas fa-book" style="font-size:2rem;color:white;"></i>
+                </div>
+                <span style="font-size:1.15rem;font-weight:700;margin-bottom:4px;">Jurnal</span>
+                <span style="font-size:.75rem;color:rgba(255,255,255,0.8);font-weight:500;">Catat kegiatan hari ini</span>
+            </a>
         </div>
 
         <div class="card animate-item">

@@ -24,6 +24,7 @@ $siswaMenu = [
     ['icon' => 'fas fa-clock', 'label' => 'Jam Kerja', 'url' => '/siswa/jam_kerja.php', 'page' => 'jam_kerja'],
     ['icon' => 'fas fa-map-marker-alt', 'label' => 'Presensi', 'url' => '/siswa/presensi.php', 'page' => 'presensi'],
     ['icon' => 'fas fa-book-open', 'label' => 'Jurnal PKL', 'url' => '/siswa/jurnal.php', 'page' => 'jurnal'],
+    ['icon' => 'fas fa-id-badge', 'label' => 'Kartu PKL', 'url' => '/siswa/kartu_pkl.php', 'page' => 'kartu_pkl'],
     ['icon' => 'fas fa-user-circle', 'label' => 'Profil', 'url' => '/siswa/profil.php', 'page' => 'profil'],
 ];
 

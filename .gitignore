@@ -1,0 +1,14 @@
+# Environment secrets
+.env
+
+# PHP dependencies
+vendor/
+
+# XAMPP / local uploads
+assets/uploads/
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.log

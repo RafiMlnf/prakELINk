@@ -17,12 +17,12 @@
     --accent-glow: rgba(6, 182, 212, 0.25);
 
     /* Semantic */
-    --success: #10b981;
-    --success-light: #34d399;
+    --success: #00b84c;
+    --success-light: #2ee67d;
     --warning: #ffcc00;
     --warning-light: #b38f00;
-    --danger: #ef4444;
-    --danger-light: #f87171;
+    --danger: #e61919;
+    --danger-light: #e61919;
     --info: #3b82f6;
 
     /* Neutral (Light Theme) */
@@ -271,7 +271,7 @@ img {
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    background: #ef4444;
+    background: #e61919;
     color: white;
     font-size: .65rem;
     font-weight: 700;
@@ -283,7 +283,7 @@ img {
     justify-content: center;
     padding: 0 5px;
     line-height: 1;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 2px 6px rgba(230, 25, 25, 0.4);
     animation: notifPulse 2s ease-in-out infinite;
 }
 
@@ -291,11 +291,11 @@ img {
 
     0%,
     100% {
-        box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+        box-shadow: 0 2px 6px rgba(230, 25, 25, 0.4);
     }
 
     50% {
-        box-shadow: 0 2px 12px rgba(239, 68, 68, 0.7);
+        box-shadow: 0 2px 12px rgba(230, 25, 25, 0.7);
     }
 }
 
@@ -363,7 +363,7 @@ img {
 }
 
 .logout-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(230, 25, 25, 0.15);
     color: var(--danger);
 }
 
@@ -473,7 +473,7 @@ img {
 }
 
 .topbar-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(230, 25, 25, 0.12);
     color: var(--danger);
 }
 
@@ -601,7 +601,7 @@ img {
 }
 
 .stat-card.success .stat-icon {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(0, 184, 76, 0.15);
     color: var(--success-light);
 }
 
@@ -611,7 +611,7 @@ img {
 }
 
 .stat-card.danger .stat-icon {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(230, 25, 25, 0.15);
     color: var(--danger-light);
 }
 
@@ -771,8 +771,8 @@ select.form-control {
 }
 
 .btn-success:hover {
-    background: #059669;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    background: #00993f;
+    box-shadow: 0 4px 16px rgba(0, 184, 76, 0.4);
     color: white;
 }
 
@@ -782,8 +782,8 @@ select.form-control {
 }
 
 .btn-danger:hover {
-    background: #dc2626;
-    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+    background: #cc1010;
+    box-shadow: 0 4px 16px rgba(230, 25, 25, 0.4);
     color: white;
 }
 
@@ -842,7 +842,7 @@ select.form-control {
 }
 
 .badge-success {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(0, 184, 76, 0.15);
     color: var(--success-light);
 }
 
@@ -852,7 +852,7 @@ select.form-control {
 }
 
 .badge-danger {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(230, 25, 25, 0.15);
     color: var(--danger-light);
 }
 
@@ -881,14 +881,14 @@ select.form-control {
 }
 
 .alert-success {
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    background: rgba(0, 184, 76, 0.12);
+    border: 1px solid rgba(0, 184, 76, 0.25);
     color: var(--success-light);
 }
 
 .alert-danger {
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    background: rgba(230, 25, 25, 0.12);
+    border: 1px solid rgba(230, 25, 25, 0.25);
     color: var(--danger-light);
 }
 
@@ -982,7 +982,7 @@ select.form-control {
 }
 
 .modal-close:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(230, 25, 25, 0.12);
     color: var(--danger);
 }
 
@@ -1043,7 +1043,7 @@ select.form-control {
 }
 
 .checkin-status .status-icon.in {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(0, 184, 76, 0.15);
     color: var(--success);
     animation: pulse 2s infinite;
 }
@@ -1442,11 +1442,11 @@ select.form-control {
 
     0%,
     100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        box-shadow: 0 0 0 0 rgba(0, 184, 76, 0.4);
     }
 
     50% {
-        box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
+        box-shadow: 0 0 0 15px rgba(0, 184, 76, 0);
     }
 }
 
@@ -1821,7 +1821,7 @@ html[data-theme="dark"] .logout-btn {
 }
 
 html[data-theme="dark"] .logout-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(230, 25, 25, 0.15);
     color: var(--danger-light);
 }
 
@@ -1886,8 +1886,8 @@ html[data-theme="dark"] .alert-warning {
 }
 
 html[data-theme="dark"] .alert-danger {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(230, 25, 25, 0.12);
+    border-color: rgba(230, 25, 25, 0.25);
     color: #f87171;
 }
 
@@ -1898,8 +1898,8 @@ html[data-theme="dark"] .alert-info {
 }
 
 html[data-theme="dark"] .alert-success {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.25);
+    background: rgba(0, 184, 76, 0.12);
+    border-color: rgba(0, 184, 76, 0.25);
     color: #34d399;
 }
 
